@@ -6,7 +6,7 @@
 
 #define BLOCK_SIZE 256
 
-void buddy_init(void* vpSpace, size_t size);
+void buddy_init(void *vpSpace, size_t size);
 void *buddy_alloc(size_t size);
 
 void buddy_print_memory_offsets();
