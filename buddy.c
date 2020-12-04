@@ -1,7 +1,8 @@
-#include <stdint.h>
-#include <assert.h>
 #include "buddy/buddy.h"
 #include "helper.h"
+
+#include <assert.h>
+#include <stdint.h>
 
 #define TOTAL_MEMORY_BLOCKID(id) ((1 << id) * ROUND_TO_POWER_OF_TWO(BLOCK_SIZE))
 
@@ -32,24 +33,24 @@ static buddy_allocator_t *s_pBuddyHead;
 
 static inline void buddy_init_memory_blocks(buddy_allocator_t *pBuddyHead)
 {
-    for (uint16_t i=0; i < pBuddyHead->maxBlockSize; i++)
+    for (uint16_t i = 0; i < pBuddyHead->maxBlockSize; i++)
     {
         pBuddyHead->vpMemoryBlocks[i] = NULL;
     }
 
-    buddy_block_t *start = (buddy_block_t*)pBuddyHead->vpMemoryStart;
+    buddy_block_t *start = (buddy_block_t *)pBuddyHead->vpMemoryStart;
 
-    for (int16_t i=pBuddyHead->maxBlockSize-1; i >= 0; i--)
+    for (int16_t i = pBuddyHead->maxBlockSize - 1; i >= 0; i--)
     {
-        if ((pBuddyHead->memorySize & TOTAL_MEMORY_BLOCKID(i))
-                && sizeof(buddy_block_t) <= TOTAL_MEMORY_BLOCKID(i))
+        if ((pBuddyHead->memorySize & TOTAL_MEMORY_BLOCKID(i)) && sizeof(buddy_block_t) <= TOTAL_MEMORY_BLOCKID(i))
         {
-            pBuddyHead->vpMemoryBlocks[i] = (buddy_block_t*) start;
+            pBuddyHead->vpMemoryBlocks[i] = (buddy_block_t *)start;
             start->next = NULL;
             start->prev = NULL;
             start->blockid = i;
-            BUDDY_LOG("Created buddy_block at offset %d of size %d", (intptr_t)start - (intptr_t)pBuddyHead->vpMemoryStart, TOTAL_MEMORY_BLOCKID(i));
-            start = (buddy_block_t*)((intptr_t)start + TOTAL_MEMORY_BLOCKID(i));// / sizeof(buddy_block_t*);
+            BUDDY_LOG("Created buddy_block at offset %d of size %d",
+                      (intptr_t)start - (intptr_t)pBuddyHead->vpMemoryStart, TOTAL_MEMORY_BLOCKID(i));
+            start = (buddy_block_t *)((intptr_t)start + TOTAL_MEMORY_BLOCKID(i)); // / sizeof(buddy_block_t*);
         }
     }
     BUDDY_LOG("Total buddy_blocks allocated: %d", (intptr_t)start - (intptr_t)pBuddyHead->vpMemoryStart);
@@ -57,25 +58,25 @@ static inline void buddy_init_memory_blocks(buddy_allocator_t *pBuddyHead)
 
 void buddy_init(void *vpSpace, size_t totalSize)
 {
-    //printf("%d", TOTAL_MEMORY_BLOCKID(0));
+    // printf("%d", TOTAL_MEMORY_BLOCKID(0));
     if (!vpSpace || !totalSize) // TODO: Add error
         return;
     LOG("%d", BLOCK_SIZE_POW_TWO);
     const short Num_Blocks = BEST_FIT_BLOCKID(totalSize / BLOCK_SIZE_POW_TWO) + 1;
 
-    if (sizeof(buddy_allocator_t) + Num_Blocks * sizeof(buddy_block_t*) >= totalSize) // TODO: Add error
+    if (sizeof(buddy_allocator_t) + Num_Blocks * sizeof(buddy_block_t *) >= totalSize) // TODO: Add error
         return;
 
-    buddy_allocator_t *pBuddyHead = (buddy_allocator_t*) vpSpace;
-    pBuddyHead->totalSize       = totalSize;
-    pBuddyHead->vpStart         = vpSpace;
-    pBuddyHead->maxBlockSize    = Num_Blocks;
-    pBuddyHead->vpMemoryBlocks  = (buddy_block_t**)((size_t)vpSpace + sizeof(buddy_allocator_t));
-    pBuddyHead->vpMemoryStart   = pBuddyHead->vpMemoryBlocks + sizeof(buddy_block_t*) * pBuddyHead->maxBlockSize;
-    pBuddyHead->memorySize      = totalSize - sizeof(buddy_allocator_t) - sizeof(buddy_block_t*) * pBuddyHead->maxBlockSize;
+    buddy_allocator_t *pBuddyHead = (buddy_allocator_t *)vpSpace;
+    pBuddyHead->totalSize = totalSize;
+    pBuddyHead->vpStart = vpSpace;
+    pBuddyHead->maxBlockSize = Num_Blocks;
+    pBuddyHead->vpMemoryBlocks = (buddy_block_t **)((size_t)vpSpace + sizeof(buddy_allocator_t));
+    pBuddyHead->vpMemoryStart = pBuddyHead->vpMemoryBlocks + sizeof(buddy_block_t *) * pBuddyHead->maxBlockSize;
+    pBuddyHead->memorySize = totalSize - sizeof(buddy_allocator_t) - sizeof(buddy_block_t *) * pBuddyHead->maxBlockSize;
     s_pBuddyHead = pBuddyHead;
 
-    BUDDY_LOG("Size of buddy: %d\nSize of array: %d", sizeof(buddy_allocator_t), Num_Blocks * sizeof(buddy_block_t*));
+    BUDDY_LOG("Size of buddy: %d\nSize of array: %d", sizeof(buddy_allocator_t), Num_Blocks * sizeof(buddy_block_t *));
 
     buddy_init_memory_blocks(pBuddyHead);
     buddy_print_memory_offsets();
@@ -83,7 +84,7 @@ void buddy_init(void *vpSpace, size_t totalSize)
 
 static void buddy_remove_from_current_list(buddy_block_t *toRemove)
 {
-    if(!toRemove)
+    if (!toRemove)
         return;
 
     if (!toRemove->prev)
@@ -114,12 +115,12 @@ static void buddy_insert_block(buddy_block_t *toInsert)
         return;
 
     ASSERT(toInsert->blockid < s_pBuddyHead->maxBlockSize);
-    buddy_block_t* curr = s_pBuddyHead->vpMemoryBlocks[toInsert->blockid];
-    buddy_block_t* prev = NULL;
+    buddy_block_t *curr = s_pBuddyHead->vpMemoryBlocks[toInsert->blockid];
+    buddy_block_t *prev = NULL;
 
     while (curr)
     {
-        if(curr > toInsert)
+        if (curr > toInsert)
             break;
         prev = curr;
         curr = curr->next;
@@ -158,7 +159,7 @@ static void buddy_split_once(buddy_block_t *toSplit, bool toRemove)
         buddy_remove_from_current_list(toSplit);
     }
 
-    buddy_block_t *newBuddy = (buddy_block_t*)((intptr_t)toSplit + TOTAL_MEMORY_BLOCKID(toSplit->blockid - 1));
+    buddy_block_t *newBuddy = (buddy_block_t *)((intptr_t)toSplit + TOTAL_MEMORY_BLOCKID(toSplit->blockid - 1));
     newBuddy->prev = NULL;
     newBuddy->next = NULL;
     newBuddy->blockid = toSplit->blockid - 1;
@@ -176,7 +177,7 @@ static void *buddy_split_buddy_block(uint8_t blockid, uint8_t targetBlockid)
     if (!toSplitStart) // TODO: Add error
         return NULL;
 
-    for (uint8_t i=blockid; i != targetBlockid; i--)
+    for (uint8_t i = blockid; i != targetBlockid; i--)
     {
         buddy_split_once(toSplitStart, i == blockid);
     }
@@ -198,12 +199,13 @@ void *buddy_alloc(size_t size)
     if (s_pBuddyHead->vpMemoryBlocks[BEST_FIT_BLOCKID(numBlocks)])
     {
         result = s_pBuddyHead->vpMemoryBlocks[BEST_FIT_BLOCKID(numBlocks)];
-        s_pBuddyHead->vpMemoryBlocks[BEST_FIT_BLOCKID(numBlocks)] = s_pBuddyHead->vpMemoryBlocks[BEST_FIT_BLOCKID(numBlocks)]->next;
+        s_pBuddyHead->vpMemoryBlocks[BEST_FIT_BLOCKID(numBlocks)] =
+            s_pBuddyHead->vpMemoryBlocks[BEST_FIT_BLOCKID(numBlocks)]->next;
     }
     else
     {
         uint8_t i;
-        for (i = BEST_FIT_BLOCKID(numBlocks)+1; i < s_pBuddyHead->maxBlockSize; i++)
+        for (i = BEST_FIT_BLOCKID(numBlocks) + 1; i < s_pBuddyHead->maxBlockSize; i++)
         {
             if (s_pBuddyHead->vpMemoryBlocks[i])
                 break;
@@ -220,7 +222,7 @@ void *buddy_alloc(size_t size)
 void buddy_print_memory_offsets()
 {
     printf("//*************//\n");
-    for(uint8_t i = 0; i<s_pBuddyHead->maxBlockSize; i++)
+    for (uint8_t i = 0; i < s_pBuddyHead->maxBlockSize; i++)
     {
         printf("[ %4d ] ", 1 << i);
         for (buddy_block_t *curr = s_pBuddyHead->vpMemoryBlocks[i]; curr; curr = curr->next)

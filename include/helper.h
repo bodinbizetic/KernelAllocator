@@ -9,11 +9,11 @@
 #define LOGING
 #define LOGING_BUDDY
 
-
 #ifdef LOGING
 
-#define LOG(str, ...) printf(str, __VA_ARGS__); \
-                        printf("\n")
+#define LOG(str, ...)                                                                                                  \
+    printf(str, __VA_ARGS__);                                                                                          \
+    printf("\n")
 #else
 
 #define LOG(str, ...)
@@ -26,10 +26,10 @@
 #define FLS(num) (num ? sizeof(num) * CHAR_BIT - __builtin_clz(num) : 0)
 
 // Find first >= POW_TWO
-#define BEST_FIT_BLOCKID(num) FLS(num-1)
+#define BEST_FIT_BLOCKID(num) FLS(num - 1)
 
 #define POWER_OF_TWO(num) ((num & (num - 1)) == 0)
-#define ROUND_TO_POWER_OF_TWO(num) (1  << (BEST_FIT_BLOCKID(num)))
+#define ROUND_TO_POWER_OF_TWO(num) (1 << (BEST_FIT_BLOCKID(num)))
 
 //******************************************************************//
 // ASSERTION *******************************************************//
