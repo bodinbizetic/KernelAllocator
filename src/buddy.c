@@ -5,7 +5,7 @@
 
 #define TOTAL_MEMORY_BLOCKID(id) ((1 << id) * ROUND_TO_POWER_OF_TWO(BUDDY_BLOCK_SIZE))
 
-#if POWER_OF_TWO(BLOCK_SIZE)
+#if POWER_OF_TWO(BUDDY_BLOCK_SIZE)
 #define BLOCK_SIZE_POW_TWO BUDDY_BLOCK_SIZE
 #else
 #define BLOCK_SIZE_POW_TWO ROUND_TO_POWER_OF_TWO(BUDDY_BLOCK_SIZE)
@@ -14,12 +14,38 @@
 #define LEFT_RIGHT_BROTHER(ptrSmall, ptrBig, blockId)                                                                  \
     ((intptr_t)ptrSmall + TOTAL_MEMORY_BLOCKID(blockId) == (intptr_t)ptrBig)
 
-#define BUDDY_BITMAP_MIN_BLOCKID 2
+#define BUDDY_BITMAP_MIN_BLOCKID 0
 
-#define BIT_ID_ADR(addr, blockid) ((size_t)addr - (size_t)s_pBuddyHead->vpMemoryStart >> blockid + 4)
-#define BIT_ID_OFF(addr, blockid) (1 << (((size_t)addr - (size_t)s_pBuddyHead->vpMemoryStart >> blockid + 1) & 0x3))
+#define BIT_ID_ADR(addr, blockid)                                                                                      \
+    (((size_t)addr - (size_t)s_pBuddyHead->vpMemoryStart) / BLOCK_SIZE_POW_TWO >> blockid + 4)
+#define BIT_ID_OFF(addr, blockid)                                                                                      \
+    (1 << ((((size_t)addr - (size_t)s_pBuddyHead->vpMemoryStart) / BLOCK_SIZE_POW_TWO >> blockid + 1) & 0x7))
 
 buddy_allocator_t *s_pBuddyHead = NULL;
+
+static inline void setBitMapBit(void *addr, uint8_t blockId, uint8_t value)
+{
+    ASSERT(addr >= s_pBuddyHead->vpMemoryStart);
+    if (s_pBuddyHead->vpMemoryBlocks[blockId].numByteMap)
+    {
+        const size_t indexAdr = BIT_ID_ADR(addr, blockId);
+        const uint8_t bitOff = BIT_ID_OFF(addr, blockId);
+        const uint8_t byteMap = (value ? s_pBuddyHead->vpMemoryBlocks[blockId].bitmap[indexAdr] | bitOff
+                                       : s_pBuddyHead->vpMemoryBlocks[blockId].bitmap[indexAdr] & ~bitOff);
+        s_pBuddyHead->vpMemoryBlocks[blockId].bitmap[BIT_ID_ADR(addr, blockId)] = byteMap;
+    }
+}
+
+static inline uint8_t getBitMapBit(void *addr, uint8_t blockId)
+{
+    ASSERT(addr);
+    if (s_pBuddyHead->vpMemoryBlocks[blockId].numByteMap)
+    {
+        const size_t indexAdr = BIT_ID_ADR(addr, blockId);
+        const uint8_t bitOff = BIT_ID_OFF(addr, blockId);
+        return s_pBuddyHead->vpMemoryBlocks[blockId].bitmap[indexAdr] & bitOff;
+    }
+}
 
 static inline void buddy_init_memory_blocks(buddy_allocator_t *pBuddyHead)
 {
@@ -39,13 +65,7 @@ static inline void buddy_init_memory_blocks(buddy_allocator_t *pBuddyHead)
             start->prev = NULL;
             start->blockid = i;
 
-            if (pBuddyHead->vpMemoryBlocks[i].numByteMap)
-            {
-                const size_t indexAdr = BIT_ID_ADR(start, i);
-                const uint8_t bitOff = BIT_ID_OFF(start, i);
-                const uint8_t byteMap = pBuddyHead->vpMemoryBlocks[i].bitmap[indexAdr] | bitOff;
-                pBuddyHead->vpMemoryBlocks[i].bitmap[BIT_ID_ADR(start, i)] = byteMap;
-            }
+            setBitMapBit(start, i, 1);
 
             BUDDY_LOG("Created buddy_block at offset %d of size %d",
                       (intptr_t)start - (intptr_t)pBuddyHead->vpMemoryStart, TOTAL_MEMORY_BLOCKID(i));
@@ -60,7 +80,7 @@ static void buddy_init_bitmap(buddy_allocator_t *pBuddyHead)
     if (!pBuddyHead)
         return;
     void *start = pBuddyHead->vpMemoryStart;
-    size_t memory = pBuddyHead->memorySize;
+    size_t memory = pBuddyHead->memorySize / BLOCK_SIZE_POW_TWO;
     size_t memory_loss = 0;
     for (uint8_t i = 0; i < pBuddyHead->maxBlockSize; i++)
     {
@@ -211,6 +231,7 @@ static void *buddy_split_buddy_block(uint8_t blockid, uint8_t targetBlockid)
 
     for (uint8_t i = blockid; i != targetBlockid; i--)
     {
+        ASSERT(i >= BUDDY_BITMAP_MIN_BLOCKID && getBitMapBit(toSplitStart, i) == 1);
         buddy_split_once(toSplitStart, i == blockid);
     }
 
@@ -230,9 +251,15 @@ void *buddy_alloc(size_t size)
     void *result = NULL;
     if (s_pBuddyHead->vpMemoryBlocks[BEST_FIT_BLOCKID(numBlocks)].block)
     {
+        ASSERT(
+            BEST_FIT_BLOCKID(numBlocks) >= BUDDY_BITMAP_MIN_BLOCKID &&
+            getBitMapBit(s_pBuddyHead->vpMemoryBlocks[BEST_FIT_BLOCKID(numBlocks)].block, BEST_FIT_BLOCKID(numBlocks)));
+
         result = s_pBuddyHead->vpMemoryBlocks[BEST_FIT_BLOCKID(numBlocks)].block;
         s_pBuddyHead->vpMemoryBlocks[BEST_FIT_BLOCKID(numBlocks)].block =
             s_pBuddyHead->vpMemoryBlocks[BEST_FIT_BLOCKID(numBlocks)].block->next;
+
+        setBitMapBit(result, BEST_FIT_BLOCKID(numBlocks), 0);
     }
     else
     {
@@ -309,7 +336,8 @@ void buddy_print_memory_offsets()
     {
         printf("[ %4d ] ", 1 << i);
         for (buddy_block_t *curr = s_pBuddyHead->vpMemoryBlocks[i].block; curr; curr = curr->next)
-            printf(" %d", (intptr_t)curr - (intptr_t)s_pBuddyHead->vpMemoryStart);
+            printf(" (%d, %d)", (intptr_t)curr - (intptr_t)s_pBuddyHead->vpMemoryStart,
+                   ((intptr_t)curr - (intptr_t)s_pBuddyHead->vpMemoryStart) / BLOCK_SIZE_POW_TWO >> curr->blockid);
         printf("\n");
     }
 }
@@ -320,7 +348,7 @@ void buddy_print_bitmap()
     for (uint8_t i = 0; i < s_pBuddyHead->maxBlockSize; i++)
     {
         printf("[ %4d ] ", 1 << i);
-        if (s_pBuddyHead->vpMemoryBlocks[i].numByteMap == NULL)
+        if (s_pBuddyHead->vpMemoryBlocks[i].numByteMap == 0)
         {
             printf("NULL\n");
             continue;
@@ -329,8 +357,8 @@ void buddy_print_bitmap()
         {
 
             uint8_t n = s_pBuddyHead->vpMemoryBlocks[i].bitmap[j];
-            uint8_t cnt = 4;
-            while (n || cnt)
+            uint8_t cnt = 8;
+            while (cnt)
             {
                 if (n & 1)
                     printf("1");
