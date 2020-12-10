@@ -2,7 +2,6 @@
 #include "helper.h"
 
 #include <assert.h>
-#include <stdint.h>
 
 #define TOTAL_MEMORY_BLOCKID(id) ((1 << id) * ROUND_TO_POWER_OF_TWO(BLOCK_SIZE))
 
@@ -12,24 +11,10 @@
 #define BLOCK_SIZE_POW_TWO ROUND_TO_POWER_OF_TWO(BLOCK_SIZE)
 #endif // BLOCK_SIZE_POW_TWO
 
-typedef struct buddy_block_struct
-{
-    struct buddy_block_struct *prev;
-    struct buddy_block_struct *next;
-    uint8_t blockid;
-} buddy_block_t;
+#define LEFT_RIGHT_BROTHER(ptrSmall, ptrBig, blockId)                                                                  \
+    ((intptr_t)ptrSmall + TOTAL_MEMORY_BLOCKID(blockId) == (intptr_t)ptrBig)
 
-typedef struct buddy_allocator_struct
-{
-    void *vpStart;
-    size_t totalSize;
-    uint8_t maxBlockSize;
-    void *vpMemoryStart;
-    size_t memorySize;
-    buddy_block_t **vpMemoryBlocks;
-} buddy_allocator_t;
-
-static buddy_allocator_t *s_pBuddyHead;
+buddy_allocator_t *s_pBuddyHead = NULL;
 
 static inline void buddy_init_memory_blocks(buddy_allocator_t *pBuddyHead)
 {
@@ -61,7 +46,7 @@ void buddy_init(void *vpSpace, size_t totalSize)
     // printf("%d", TOTAL_MEMORY_BLOCKID(0));
     if (!vpSpace || !totalSize) // TODO: Add error
         return;
-    LOG("%d", BLOCK_SIZE_POW_TWO);
+
     const short Num_Blocks = BEST_FIT_BLOCKID(totalSize / BLOCK_SIZE_POW_TWO) + 1;
 
     if (sizeof(buddy_allocator_t) + Num_Blocks * sizeof(buddy_block_t *) >= totalSize) // TODO: Add error
@@ -79,7 +64,6 @@ void buddy_init(void *vpSpace, size_t totalSize)
     BUDDY_LOG("Size of buddy: %d\nSize of array: %d", sizeof(buddy_allocator_t), Num_Blocks * sizeof(buddy_block_t *));
 
     buddy_init_memory_blocks(pBuddyHead);
-    buddy_print_memory_offsets();
 }
 
 static void buddy_remove_from_current_list(buddy_block_t *toRemove)
@@ -217,6 +201,56 @@ void *buddy_alloc(size_t size)
     }
 
     return result;
+}
+
+static void buddy_merge_big_level_up(buddy_block_t *pBuddyBlock)
+{
+    if (!pBuddyBlock)
+        return;
+    ASSERT(pBuddyBlock->next);
+
+    buddy_remove_from_current_list(pBuddyBlock->next);
+    buddy_remove_from_current_list(pBuddyBlock);
+
+    pBuddyBlock->blockid++;
+    ASSERT(pBuddyBlock->blockid < s_pBuddyHead->maxBlockSize);
+    buddy_insert_block(pBuddyBlock);
+}
+
+static void buddy_merge_propagate(buddy_block_t *pBuddyBlock)
+{
+    if (!pBuddyBlock)
+        return;
+
+    while (true)
+    {
+        buddy_block_t *toMerge = NULL;
+        if (pBuddyBlock->next && LEFT_RIGHT_BROTHER(pBuddyBlock, pBuddyBlock->next, pBuddyBlock->blockid))
+        {
+            toMerge = pBuddyBlock;
+        }
+        if (pBuddyBlock->prev && LEFT_RIGHT_BROTHER(pBuddyBlock->prev, pBuddyBlock, pBuddyBlock->blockid))
+        {
+            toMerge = pBuddyBlock->prev;
+        }
+        if (!toMerge)
+            break;
+        buddy_merge_big_level_up(toMerge);
+    }
+}
+
+void buddy_free(void *ptr, size_t size)
+{
+    if (!ptr || !size)
+        return; // TODO: Add Error
+
+    const size_t numBlocks = (size + BLOCK_SIZE_POW_TWO - 1) / BLOCK_SIZE_POW_TWO;
+    buddy_block_t *const pBuddyBlock = ptr;
+    pBuddyBlock->blockid = BEST_FIT_BLOCKID(size / BLOCK_SIZE_POW_TWO);
+    pBuddyBlock->next = NULL;
+    pBuddyBlock->prev = NULL;
+    buddy_insert_block(ptr);
+    buddy_merge_propagate(pBuddyBlock);
 }
 
 void buddy_print_memory_offsets()

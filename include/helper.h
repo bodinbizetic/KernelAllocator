@@ -7,7 +7,7 @@
 // LOGING *******************************************************//
 
 #define LOGING
-#define LOGING_BUDDY
+//#define LOGING_BUDDY
 
 #ifdef LOGING
 
