@@ -45,4 +45,8 @@ void buddy_print_bitmap();
 #define BUDDY_LOG(str, ...)
 #endif // BUDDY_LOG
 
+#define PRINT()                                                                                                        \
+    buddy_print_bitmap();                                                                                              \
+    buddy_print_memory_offsets();
+
 #endif

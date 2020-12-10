@@ -21,6 +21,9 @@
 #define BIT_ID_OFF(addr, blockid)                                                                                      \
     (1 << ((((size_t)addr - (size_t)s_pBuddyHead->vpMemoryStart) / BLOCK_SIZE_POW_TWO >> blockid + 1) & 0x7))
 
+#define YOUNG_BROTHER(x, y) (x < y ? x : y)
+#define OLD_BROTHER(x, y) (x > y ? x : y)
+
 buddy_allocator_t *s_pBuddyHead = NULL;
 
 static inline void setBitMapBit(void *addr, uint8_t blockId, uint8_t value)
@@ -36,15 +39,22 @@ static inline void setBitMapBit(void *addr, uint8_t blockId, uint8_t value)
     }
 }
 
-static inline uint8_t getBitMapBit(void *addr, uint8_t blockId)
+static inline bool getBitMapBit(void *addr, uint8_t blockId)
 {
     ASSERT(addr);
     if (s_pBuddyHead->vpMemoryBlocks[blockId].numByteMap)
     {
         const size_t indexAdr = BIT_ID_ADR(addr, blockId);
         const uint8_t bitOff = BIT_ID_OFF(addr, blockId);
-        return s_pBuddyHead->vpMemoryBlocks[blockId].bitmap[indexAdr] & bitOff;
+        return (s_pBuddyHead->vpMemoryBlocks[blockId].bitmap[indexAdr] & bitOff) != 0;
     }
+}
+
+static inline buddy_block_t *getBrother(buddy_block_t *pBlock)
+{
+    intptr_t adr = (intptr_t)pBlock - (intptr_t)s_pBuddyHead->vpMemoryStart;
+    adr ^= BUDDY_BLOCK_SIZE << pBlock->blockid;
+    return adr + (intptr_t)s_pBuddyHead->vpMemoryStart;
 }
 
 static inline void buddy_init_memory_blocks(buddy_allocator_t *pBuddyHead)
@@ -229,12 +239,14 @@ static void *buddy_split_buddy_block(uint8_t blockid, uint8_t targetBlockid)
     if (!toSplitStart) // TODO: Add error
         return NULL;
 
+    ASSERT(blockid >= BUDDY_BITMAP_MIN_BLOCKID && getBitMapBit(toSplitStart, blockid) == 1);
     for (uint8_t i = blockid; i != targetBlockid; i--)
     {
-        ASSERT(i >= BUDDY_BITMAP_MIN_BLOCKID && getBitMapBit(toSplitStart, i) == 1);
         buddy_split_once(toSplitStart, i == blockid);
+        setBitMapBit(toSplitStart, i, getBitMapBit(toSplitStart, i) ^ 1);
     }
 
+    setBitMapBit(toSplitStart, targetBlockid, 1);
     return toSplitStart;
 }
 
@@ -278,20 +290,6 @@ void *buddy_alloc(size_t size)
     return result;
 }
 
-static void buddy_merge_big_level_up(buddy_block_t *pBuddyBlock)
-{
-    if (!pBuddyBlock)
-        return;
-    ASSERT(pBuddyBlock->next);
-
-    buddy_remove_from_current_list(pBuddyBlock->next);
-    buddy_remove_from_current_list(pBuddyBlock);
-
-    pBuddyBlock->blockid++;
-    ASSERT(pBuddyBlock->blockid < s_pBuddyHead->maxBlockSize);
-    buddy_insert_block(pBuddyBlock);
-}
-
 static void buddy_merge_propagate(buddy_block_t *pBuddyBlock)
 {
     if (!pBuddyBlock)
@@ -299,19 +297,20 @@ static void buddy_merge_propagate(buddy_block_t *pBuddyBlock)
 
     while (true)
     {
-        buddy_block_t *toMerge = NULL;
-        if (pBuddyBlock->next && LEFT_RIGHT_BROTHER(pBuddyBlock, pBuddyBlock->next, pBuddyBlock->blockid))
+        if (getBitMapBit(pBuddyBlock, pBuddyBlock->blockid))
         {
-            toMerge = pBuddyBlock;
+            buddy_block_t *brother = getBrother(pBuddyBlock);
+            buddy_remove_from_current_list(brother);
+            pBuddyBlock = YOUNG_BROTHER(pBuddyBlock, brother);
+            setBitMapBit(pBuddyBlock, pBuddyBlock->blockid, 0);
+            pBuddyBlock->blockid++;
         }
-        if (pBuddyBlock->prev && LEFT_RIGHT_BROTHER(pBuddyBlock->prev, pBuddyBlock, pBuddyBlock->blockid))
+        else
         {
-            toMerge = pBuddyBlock->prev;
-            pBuddyBlock = toMerge;
-        }
-        if (!toMerge)
+            setBitMapBit(pBuddyBlock, pBuddyBlock->blockid, 1);
+            buddy_insert_block(pBuddyBlock);
             break;
-        buddy_merge_big_level_up(toMerge);
+        }
     }
 }
 
@@ -325,7 +324,6 @@ void buddy_free(void *ptr, size_t size)
     pBuddyBlock->blockid = BEST_FIT_BLOCKID(size / BLOCK_SIZE_POW_TWO);
     pBuddyBlock->next = NULL;
     pBuddyBlock->prev = NULL;
-    buddy_insert_block(ptr);
     buddy_merge_propagate(pBuddyBlock);
 }
 
