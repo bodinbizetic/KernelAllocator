@@ -18,6 +18,7 @@ typedef struct buddy_table_entry_struct
 {
     buddy_block_t *block;
     uint8_t *bitmap;
+    size_t numByteMap;
 } buddy_table_entry_t;
 
 typedef struct buddy_allocator_struct
@@ -35,7 +36,7 @@ void *buddy_alloc(size_t size);
 void buddy_free(void *ptr, size_t size);
 
 void buddy_print_memory_offsets();
-
+void buddy_print_bitmap();
 #if defined(LOGING) && defined(LOGING_BUDDY)
 
 #define BUDDY_LOG(str, ...) LOG(str, __VA_ARGS__)
