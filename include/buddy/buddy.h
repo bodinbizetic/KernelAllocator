@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define BLOCK_SIZE 256
+#define BUDDY_BLOCK_SIZE 256
 
 typedef struct buddy_block_struct
 {
@@ -14,6 +14,12 @@ typedef struct buddy_block_struct
     uint8_t blockid;
 } buddy_block_t;
 
+typedef struct buddy_table_entry_struct
+{
+    buddy_block_t *block;
+    uint8_t *bitmap;
+} buddy_table_entry_t;
+
 typedef struct buddy_allocator_struct
 {
     void *vpStart;
@@ -21,7 +27,7 @@ typedef struct buddy_allocator_struct
     uint8_t maxBlockSize;
     void *vpMemoryStart;
     size_t memorySize;
-    buddy_block_t **vpMemoryBlocks;
+    buddy_table_entry_t *vpMemoryBlocks;
 } buddy_allocator_t;
 
 void buddy_init(void *vpSpace, size_t size);
