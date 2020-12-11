@@ -25,9 +25,11 @@ BUDDY_TEST_END
 BUDDY_TEST_START(alloc_free)
 {
     const int ITER = 1000;
-    const int mem = num_blocks / 8 * BUDDY_BLOCK_SIZE;
+    const int mem = (ROUND_TO_POWER_OF_TWO(num_blocks) >> 1) * BUDDY_BLOCK_SIZE;
     for (int i = 0; i < ITER; i++)
     {
+        if (mem == 0)
+            return true;
         void *ptr = buddy_alloc(mem);
         tst_assert(ptr);
         buddy_free(ptr, mem);
@@ -97,7 +99,7 @@ BUDDY_TEST_START(full_alloc_free_32)
 }
 BUDDY_TEST_END
 
-TEST_SUITE_START(buddy)
+TEST_SUITE_START(buddy, 1024)
 {
     SUITE_ADD(full_range_memory);
     SUITE_ADD(out_of_mem);

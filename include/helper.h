@@ -26,7 +26,7 @@
 #define FLS(num) (num ? sizeof(num) * CHAR_BIT - __builtin_clz(num) : 0)
 
 // Find first >= POW_TWO
-#define BEST_FIT_BLOCKID(num) FLS(num - 1)
+#define BEST_FIT_BLOCKID(num) (num == 0 ? 0 : FLS(num - 1))
 
 #define POWER_OF_TWO(num) ((num & (num - 1)) == 0)
 #define ROUND_TO_POWER_OF_TWO(num) (1 << (BEST_FIT_BLOCKID(num)))

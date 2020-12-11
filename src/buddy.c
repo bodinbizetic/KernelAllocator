@@ -59,6 +59,7 @@ static inline buddy_block_t *getBrother(buddy_block_t *pBlock)
 
 static inline void buddy_init_memory_blocks(buddy_allocator_t *pBuddyHead)
 {
+    // TODO: Add Not Enough Memory
     for (uint16_t i = 0; i < pBuddyHead->maxBlockSize; i++)
     {
         pBuddyHead->vpMemoryBlocks[i].block = NULL;
@@ -87,7 +88,7 @@ static inline void buddy_init_memory_blocks(buddy_allocator_t *pBuddyHead)
 
 static void buddy_init_bitmap(buddy_allocator_t *pBuddyHead)
 {
-    if (!pBuddyHead)
+    if (!pBuddyHead) // TODO: Add Not Enough Memory
         return;
 
     void *start = pBuddyHead->vpMemoryStart;
@@ -122,6 +123,8 @@ static void buddy_init_bitmap(buddy_allocator_t *pBuddyHead)
 
 void buddy_init(void *vpSpace, size_t totalSize)
 {
+    ASSERT(sizeof(buddy_block_t) <= BLOCK_SIZE_POW_TWO);
+
     if (!vpSpace || !totalSize) // TODO: Add error
         return;
 

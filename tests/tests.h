@@ -6,10 +6,10 @@
 #define TEST_MEM_CAP 1000
 
 #define BUDDY_TEST_START(name)                                                                                         \
-    static bool tst_##name()                                                                                           \
+    static bool tst_##name(size_t Max_Blocks)                                                                          \
     {                                                                                                                  \
         printf("\n-> Started test %s\n", #name);                                                                       \
-        const size_t MEMORY_SIZE = (TEST_MEM_CAP)*BUDDY_BLOCK_SIZE;                                                    \
+        const size_t MEMORY_SIZE = (Max_Blocks)*BUDDY_BLOCK_SIZE;                                                      \
         void *_ptr = malloc(MEMORY_SIZE);                                                                              \
         buddy_init(_ptr, MEMORY_SIZE);                                                                                 \
         size_t total_blocks_mem = MEMORY_SIZE - (size_t)s_pBuddyHead->vpMemoryStart + (size_t)s_pBuddyHead->vpStart;   \
@@ -21,20 +21,22 @@
     return true;                                                                                                       \
     }
 
-#define TEST_SUITE_START(name)                                                                                         \
+#define TEST_SUITE_START(name, MemSize)                                                                                \
     bool suite_##name()                                                                                                \
     {                                                                                                                  \
+        const int Mem_Size = MemSize;                                                                                  \
         short cnt = 0;                                                                                                 \
         printf("/************Started %s suite************/\n", #name);                                                 \
-        int tst_num_start = __LINE__;
+        int tst_num_cnt = 0;
 
 #define TEST_SUITE_END                                                                                                 \
-    int tst_num_cnt = __LINE__ - tst_num_start - 3;                                                                    \
     printf("\n\nSucceeded: %d\nFailed: %d\n", cnt, tst_num_cnt - cnt);                                                 \
     printf("/************Ended suite************/\n");                                                                 \
     }
 
-#define SUITE_ADD(name) cnt += tst_##name()
+#define SUITE_ADD(name)                                                                                                \
+    cnt += tst_##name(Mem_Size);                                                                                       \
+    tst_num_cnt++;
 
 #define tst_assert(x)                                                                                                  \
     if (!(x))                                                                                                          \
