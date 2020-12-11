@@ -3,11 +3,13 @@
 
 #include <stdio.h>
 
+#define TEST_MEM_CAP 1000
+
 #define BUDDY_TEST_START(name)                                                                                         \
     static bool tst_##name()                                                                                           \
     {                                                                                                                  \
         printf("\n-> Started test %s\n", #name);                                                                       \
-        const size_t MEMORY_SIZE = (33) * BUDDY_BLOCK_SIZE;                                                            \
+        const size_t MEMORY_SIZE = (TEST_MEM_CAP)*BUDDY_BLOCK_SIZE;                                                    \
         void *_ptr = malloc(MEMORY_SIZE);                                                                              \
         buddy_init(_ptr, MEMORY_SIZE);                                                                                 \
         size_t total_blocks_mem =                                                                                      \

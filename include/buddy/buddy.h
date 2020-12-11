@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define BUDDY_BLOCK_SIZE 1024
+#define BUDDY_BLOCK_SIZE 4096
 
 typedef struct buddy_block_struct
 {
