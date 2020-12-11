@@ -12,8 +12,7 @@
         const size_t MEMORY_SIZE = (TEST_MEM_CAP)*BUDDY_BLOCK_SIZE;                                                    \
         void *_ptr = malloc(MEMORY_SIZE);                                                                              \
         buddy_init(_ptr, MEMORY_SIZE);                                                                                 \
-        size_t total_blocks_mem =                                                                                      \
-            MEMORY_SIZE - (intptr_t)s_pBuddyHead->vpMemoryStart + (intptr_t)s_pBuddyHead->vpStart;                     \
+        size_t total_blocks_mem = MEMORY_SIZE - (size_t)s_pBuddyHead->vpMemoryStart + (size_t)s_pBuddyHead->vpStart;   \
         size_t num_blocks = total_blocks_mem / BUDDY_BLOCK_SIZE;
 
 #define BUDDY_TEST_END                                                                                                 \

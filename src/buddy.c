@@ -12,7 +12,7 @@
 #endif // BLOCK_SIZE_POW_TWO
 
 #define LEFT_RIGHT_BROTHER(ptrSmall, ptrBig, blockId)                                                                  \
-    ((intptr_t)ptrSmall + TOTAL_MEMORY_BLOCKID(blockId) == (intptr_t)ptrBig)
+    ((size_t)ptrSmall + TOTAL_MEMORY_BLOCKID(blockId) == (size_t)ptrBig)
 
 #define BUDDY_BITMAP_MIN_BLOCKID 0
 
@@ -52,9 +52,9 @@ static inline bool getBitMapBit(void *addr, uint8_t blockId)
 
 static inline buddy_block_t *getBrother(buddy_block_t *pBlock)
 {
-    intptr_t adr = (intptr_t)pBlock - (intptr_t)s_pBuddyHead->vpMemoryStart;
+    size_t adr = (size_t)pBlock - (size_t)s_pBuddyHead->vpMemoryStart;
     adr ^= BUDDY_BLOCK_SIZE << pBlock->blockid;
-    return (buddy_block_t *)(adr + (intptr_t)s_pBuddyHead->vpMemoryStart);
+    return (buddy_block_t *)(adr + (size_t)s_pBuddyHead->vpMemoryStart);
 }
 
 static inline void buddy_init_memory_blocks(buddy_allocator_t *pBuddyHead)
@@ -77,12 +77,12 @@ static inline void buddy_init_memory_blocks(buddy_allocator_t *pBuddyHead)
 
             setBitMapBit(start, i, 1);
 
-            BUDDY_LOG("Created buddy_block at offset %d of size %d",
-                      (intptr_t)start - (intptr_t)pBuddyHead->vpMemoryStart, TOTAL_MEMORY_BLOCKID(i));
-            start = (buddy_block_t *)((intptr_t)start + TOTAL_MEMORY_BLOCKID(i));
+            BUDDY_LOG("Created buddy_block at offset %d of size %d", (size_t)start - (size_t)pBuddyHead->vpMemoryStart,
+                      TOTAL_MEMORY_BLOCKID(i));
+            start = (buddy_block_t *)((size_t)start + TOTAL_MEMORY_BLOCKID(i));
         }
     }
-    BUDDY_LOG("Total buddy_blocks allocated: %d", (intptr_t)start - (intptr_t)pBuddyHead->vpMemoryStart);
+    BUDDY_LOG("Total buddy_blocks allocated: %d", (size_t)start - (size_t)pBuddyHead->vpMemoryStart);
 }
 
 static void buddy_init_bitmap(buddy_allocator_t *pBuddyHead)
@@ -111,13 +111,13 @@ static void buddy_init_bitmap(buddy_allocator_t *pBuddyHead)
             {
                 pBuddyHead->vpMemoryBlocks[i].bitmap[ii] = 0;
             }
-            start = (void *)((intptr_t)start + offset);
+            start = (void *)((size_t)start + offset);
         }
     }
     pBuddyHead->vpMemoryStart = start;
     pBuddyHead->memorySize -= memory_loss;
     BUDDY_LOG("BITMAP loss: %ld", memory_loss);
-    BUDDY_LOG("Memory start at index: %ld", (intptr_t)start - (intptr_t)pBuddyHead->vpStart);
+    BUDDY_LOG("Memory start at index: %ld", (size_t)start - (size_t)pBuddyHead->vpStart);
 }
 
 void buddy_init(void *vpSpace, size_t totalSize)
@@ -222,7 +222,7 @@ static void buddy_split_once(buddy_block_t *toSplit, bool toRemove)
         buddy_remove_from_current_list(toSplit);
     }
 
-    buddy_block_t *newBuddy = (buddy_block_t *)((intptr_t)toSplit + TOTAL_MEMORY_BLOCKID(toSplit->blockid - 1));
+    buddy_block_t *newBuddy = (buddy_block_t *)((size_t)toSplit + TOTAL_MEMORY_BLOCKID(toSplit->blockid - 1));
     newBuddy->prev = NULL;
     newBuddy->next = NULL;
     newBuddy->blockid = toSplit->blockid - 1;
@@ -335,8 +335,8 @@ void buddy_print_memory_offsets()
     {
         printf("[ %4d ] ", 1 << i);
         for (buddy_block_t *curr = s_pBuddyHead->vpMemoryBlocks[i].block; curr; curr = curr->next)
-            printf(" (%d, %d)", (intptr_t)curr - (intptr_t)s_pBuddyHead->vpMemoryStart,
-                   ((intptr_t)curr - (intptr_t)s_pBuddyHead->vpMemoryStart) / BLOCK_SIZE_POW_TWO >> curr->blockid);
+            printf(" (%d, %d)", (size_t)curr - (size_t)s_pBuddyHead->vpMemoryStart,
+                   ((size_t)curr - (size_t)s_pBuddyHead->vpMemoryStart) / BLOCK_SIZE_POW_TWO >> curr->blockid);
         printf("\n");
     }
 }
