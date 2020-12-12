@@ -19,7 +19,7 @@ BUDDY_TEST_END
 
 BUDDY_TEST_START(out_of_mem)
 {
-    tst_FAIL(buddy_alloc((num_blocks + 1) * BUDDY_BLOCK_SIZE, &unusedPointer) & NOT_ENOUGH_MEMORY);
+    tst_OK(buddy_alloc((num_blocks + 1) * BUDDY_BLOCK_SIZE, &unusedPointer) & ~NOT_ENOUGH_MEMORY);
 }
 BUDDY_TEST_END
 
@@ -102,6 +102,16 @@ BUDDY_TEST_START(full_alloc_free_32)
 BUDDY_TEST_END
 
 TEST_SUITE_START(buddy, 1024)
+{
+    SUITE_ADD(full_range_memory);
+    SUITE_ADD(out_of_mem);
+    SUITE_ADD(alloc_free);
+    SUITE_ADD(full_alloc_free);
+    SUITE_ADD(full_alloc_free_32);
+}
+TEST_SUITE_END
+
+TEST_SUITE_START(buddy_2, 3)
 {
     SUITE_ADD(full_range_memory);
     SUITE_ADD(out_of_mem);

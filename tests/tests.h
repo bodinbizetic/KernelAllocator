@@ -46,7 +46,7 @@
         return false;                                                                                                  \
     }
 
-#define tst_OK(x) tst_assert(!x)
+#define tst_OK(x) tst_assert(!(x))
 #define tst_FAIL(x) tst_assert(x)
 
 #endif // __TEST_H
