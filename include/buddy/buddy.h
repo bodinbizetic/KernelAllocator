@@ -31,9 +31,10 @@ typedef struct buddy_allocator_struct
     buddy_table_entry_t *vpMemoryBlocks;
 } buddy_allocator_t;
 
-void buddy_init(void *vpSpace, size_t size);
-void *buddy_alloc(size_t size);
-void buddy_free(void *ptr, size_t size);
+int buddy_init(void *vpSpace, size_t size);
+int buddy_destroy();
+int buddy_alloc(size_t size, void **result);
+int buddy_free(void *ptr, size_t size);
 
 void buddy_print_memory_offsets();
 void buddy_print_bitmap();

@@ -16,6 +16,7 @@
         size_t num_blocks = total_blocks_mem / BUDDY_BLOCK_SIZE;
 
 #define BUDDY_TEST_END                                                                                                 \
+    buddy_destroy();                                                                                                   \
     free(_ptr);                                                                                                        \
     printf("Done\n");                                                                                                  \
     return true;                                                                                                       \
@@ -44,5 +45,8 @@
         printf("Assertion failed\nFile: %s\nFunction: %s\nLine: %d\n\n", __FILE__, __FUNCTION__, __LINE__);            \
         return false;                                                                                                  \
     }
+
+#define tst_OK(x) tst_assert(!x)
+#define tst_FAIL(x) tst_assert(x)
 
 #endif // __TEST_H

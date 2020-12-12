@@ -1,24 +1,25 @@
 #include "buddy/buddy.h"
+#include "error_codes.h"
 #include "helper.h"
 #include "tests.h"
 
 extern buddy_allocator_t *s_pBuddyHead;
-
+void *unusedPointer;
 BUDDY_TEST_START(full_range_memory)
 {
     buddy_print_memory_offsets();
     for (int i = 0; i < num_blocks; i++)
     {
-        tst_assert(buddy_alloc(BUDDY_BLOCK_SIZE));
+        tst_OK(buddy_alloc(BUDDY_BLOCK_SIZE, &unusedPointer));
     }
-    tst_assert(!buddy_alloc(BUDDY_BLOCK_SIZE));
+    tst_FAIL(buddy_alloc(BUDDY_BLOCK_SIZE, &unusedPointer));
     buddy_print_memory_offsets();
 }
 BUDDY_TEST_END
 
 BUDDY_TEST_START(out_of_mem)
 {
-    tst_assert(!buddy_alloc((num_blocks + 1) * BUDDY_BLOCK_SIZE));
+    tst_FAIL(buddy_alloc((num_blocks + 1) * BUDDY_BLOCK_SIZE, &unusedPointer) & NOT_ENOUGH_MEMORY);
 }
 BUDDY_TEST_END
 
@@ -30,7 +31,8 @@ BUDDY_TEST_START(alloc_free)
     {
         if (mem == 0)
             return true;
-        void *ptr = buddy_alloc(mem);
+        void *ptr;
+        tst_OK(buddy_alloc(mem, &ptr));
         tst_assert(ptr);
         buddy_free(ptr, mem);
     }
@@ -52,13 +54,13 @@ BUDDY_TEST_START(full_alloc_free)
     buddy_print_memory_offsets();
     for (int i = 0; i < num_blocks; i++)
     {
-        tst_assert(ptr[i] = buddy_alloc(BUDDY_BLOCK_SIZE));
+        tst_OK(buddy_alloc(BUDDY_BLOCK_SIZE, &ptr[i]));
     }
-    tst_assert(!buddy_alloc(BUDDY_BLOCK_SIZE));
+    tst_FAIL(buddy_alloc(BUDDY_BLOCK_SIZE, ptr));
 
     for (int i = 0; i < num_blocks; i++)
     {
-        buddy_free(ptr[i], BUDDY_BLOCK_SIZE);
+        tst_OK(buddy_free(ptr[i], BUDDY_BLOCK_SIZE));
     }
     buddy_print_memory_offsets();
     size_t check_sum = 0;
@@ -79,13 +81,13 @@ BUDDY_TEST_START(full_alloc_free_32)
     buddy_print_memory_offsets();
     for (int i = 0; i < num_blocks / 32; i++)
     {
-        tst_assert(ptr[i] = buddy_alloc(size * BUDDY_BLOCK_SIZE));
+        tst_OK(buddy_alloc(size * BUDDY_BLOCK_SIZE, &ptr[i]));
     }
-    tst_assert(!buddy_alloc(size * BUDDY_BLOCK_SIZE));
+    tst_assert(buddy_alloc(size * BUDDY_BLOCK_SIZE, ptr));
 
     for (int i = 0; i < num_blocks / 32; i++)
     {
-        buddy_free(ptr[i], size * BUDDY_BLOCK_SIZE);
+        tst_OK(buddy_free(ptr[i], size * BUDDY_BLOCK_SIZE));
     }
     buddy_print_memory_offsets();
     size_t check_sum = 0;

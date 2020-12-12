@@ -1,4 +1,5 @@
 #include "buddy/buddy.h"
+#include "error_codes.h"
 #include "helper.h"
 
 #include <assert.h>
@@ -57,9 +58,11 @@ static inline buddy_block_t *getBrother(buddy_block_t *pBlock)
     return (buddy_block_t *)(adr + (size_t)s_pBuddyHead->vpMemoryStart);
 }
 
-static inline void buddy_init_memory_blocks(buddy_allocator_t *pBuddyHead)
+static inline int buddy_init_memory_blocks(buddy_allocator_t *pBuddyHead)
 {
-    // TODO: Add Not Enough Memory
+    if (!pBuddyHead)
+        return PARAM_ERROR;
+
     for (uint16_t i = 0; i < pBuddyHead->maxBlockSize; i++)
     {
         pBuddyHead->vpMemoryBlocks[i].block = NULL;
@@ -84,12 +87,14 @@ static inline void buddy_init_memory_blocks(buddy_allocator_t *pBuddyHead)
         }
     }
     BUDDY_LOG("Total buddy_blocks allocated: %d", (size_t)start - (size_t)pBuddyHead->vpMemoryStart);
+
+    return OK;
 }
 
-static void buddy_init_bitmap(buddy_allocator_t *pBuddyHead)
+static int buddy_init_bitmap(buddy_allocator_t *pBuddyHead)
 {
-    if (!pBuddyHead) // TODO: Add Not Enough Memory
-        return;
+    if (!pBuddyHead)
+        return PARAM_ERROR;
 
     void *start = pBuddyHead->vpMemoryStart;
     size_t memory = pBuddyHead->memorySize / BLOCK_SIZE_POW_TWO;
@@ -119,20 +124,26 @@ static void buddy_init_bitmap(buddy_allocator_t *pBuddyHead)
     pBuddyHead->memorySize -= memory_loss;
     BUDDY_LOG("BITMAP loss: %ld", memory_loss);
     BUDDY_LOG("Memory start at index: %ld", (size_t)start - (size_t)pBuddyHead->vpStart);
+
+    return OK;
 }
 
-void buddy_init(void *vpSpace, size_t totalSize)
+int buddy_init(void *vpSpace, size_t totalSize)
 {
     ASSERT(sizeof(buddy_block_t) <= BLOCK_SIZE_POW_TWO);
 
-    if (!vpSpace || !totalSize) // TODO: Add error
-        return;
+    if (!vpSpace || !totalSize)
+        return PARAM_ERROR;
 
     const short Num_Blocks = BEST_FIT_BLOCKID(totalSize / BLOCK_SIZE_POW_TWO) + 1;
 
-    if (sizeof(buddy_allocator_t) + Num_Blocks * sizeof(buddy_block_t *) >= totalSize) // TODO: Add error
-        return;
+    if (sizeof(buddy_allocator_t) + Num_Blocks * sizeof(buddy_block_t *) >= totalSize)
+        return NOT_ENOUGH_MEMORY_TO_INIT;
 
+    if (s_pBuddyHead)
+        return SYSTEM_ALREADY_INITIALIZED;
+
+    int resultCode = OK;
     buddy_allocator_t *pBuddyHead = (buddy_allocator_t *)vpSpace;
     pBuddyHead->totalSize = totalSize;
     pBuddyHead->vpStart = vpSpace;
@@ -240,7 +251,7 @@ static void *buddy_split_buddy_block(uint8_t blockid, uint8_t targetBlockid)
     ASSERT(blockid < s_pBuddyHead->maxBlockSize);
 
     buddy_block_t *toSplitStart = s_pBuddyHead->vpMemoryBlocks[blockid].block;
-    if (!toSplitStart) // TODO: Add error
+    if (!toSplitStart)
         return NULL;
 
     ASSERT(blockid >= BUDDY_BITMAP_MIN_BLOCKID && getBitMapBit(toSplitStart, blockid) == 1);
@@ -254,28 +265,29 @@ static void *buddy_split_buddy_block(uint8_t blockid, uint8_t targetBlockid)
     return toSplitStart;
 }
 
-void *buddy_alloc(size_t size)
+int buddy_alloc(size_t size, void **result)
 {
-    if (!size || !s_pBuddyHead) // TODO: Add error
-        return NULL;
+    if (!size || !result)
+        return PARAM_ERROR;
+    if (!s_pBuddyHead)
+        return SYSTEM_NOT_INITIALIZED;
 
     const size_t numBlocks = (size + BLOCK_SIZE_POW_TWO - 1) / BLOCK_SIZE_POW_TWO;
 
-    if (BEST_FIT_BLOCKID(numBlocks) >= s_pBuddyHead->maxBlockSize) // TODO: Add error
-        return NULL;
+    if (BEST_FIT_BLOCKID(numBlocks) >= s_pBuddyHead->maxBlockSize)
+        return NOT_ENOUGH_MEMORY;
 
-    void *result = NULL;
     if (s_pBuddyHead->vpMemoryBlocks[BEST_FIT_BLOCKID(numBlocks)].block)
     {
         ASSERT(
             BEST_FIT_BLOCKID(numBlocks) >= BUDDY_BITMAP_MIN_BLOCKID &&
             getBitMapBit(s_pBuddyHead->vpMemoryBlocks[BEST_FIT_BLOCKID(numBlocks)].block, BEST_FIT_BLOCKID(numBlocks)));
 
-        result = s_pBuddyHead->vpMemoryBlocks[BEST_FIT_BLOCKID(numBlocks)].block;
+        *result = s_pBuddyHead->vpMemoryBlocks[BEST_FIT_BLOCKID(numBlocks)].block;
         s_pBuddyHead->vpMemoryBlocks[BEST_FIT_BLOCKID(numBlocks)].block =
             s_pBuddyHead->vpMemoryBlocks[BEST_FIT_BLOCKID(numBlocks)].block->next;
 
-        setBitMapBit(result, BEST_FIT_BLOCKID(numBlocks), 0);
+        setBitMapBit(*result, BEST_FIT_BLOCKID(numBlocks), 0);
     }
     else
     {
@@ -285,13 +297,13 @@ void *buddy_alloc(size_t size)
             if (s_pBuddyHead->vpMemoryBlocks[i].block)
                 break;
         }
-        if (i == s_pBuddyHead->maxBlockSize) // TODO: Add error no memory
-            return NULL;
+        if (i == s_pBuddyHead->maxBlockSize)
+            return NOT_ENOUGH_MEMORY;
 
-        result = buddy_split_buddy_block(i, BEST_FIT_BLOCKID(numBlocks));
+        *result = buddy_split_buddy_block(i, BEST_FIT_BLOCKID(numBlocks));
     }
 
-    return result;
+    return OK;
 }
 
 static void buddy_merge_propagate(buddy_block_t *pBuddyBlock)
@@ -318,10 +330,12 @@ static void buddy_merge_propagate(buddy_block_t *pBuddyBlock)
     }
 }
 
-void buddy_free(void *ptr, size_t size)
+int buddy_free(void *ptr, size_t size)
 {
-    if (!ptr || !size || !s_pBuddyHead)
-        return; // TODO: Add Error
+    if (!ptr || !size)
+        return PARAM_ERROR;
+    if (!s_pBuddyHead)
+        return SYSTEM_NOT_INITIALIZED;
 
     const size_t numBlocks = (size + BLOCK_SIZE_POW_TWO - 1) / BLOCK_SIZE_POW_TWO;
     buddy_block_t *const pBuddyBlock = ptr;
@@ -329,6 +343,14 @@ void buddy_free(void *ptr, size_t size)
     pBuddyBlock->next = NULL;
     pBuddyBlock->prev = NULL;
     buddy_merge_propagate(pBuddyBlock);
+
+    return OK;
+}
+
+int buddy_destroy()
+{
+    s_pBuddyHead = NULL;
+    return OK;
 }
 
 void buddy_print_memory_offsets()
