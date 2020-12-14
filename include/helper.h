@@ -8,6 +8,7 @@
 
 #define LOGING
 #define LOGING_BUDDY
+#define LOGING_SLAB
 
 #ifdef LOGING
 

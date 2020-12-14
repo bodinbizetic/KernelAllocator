@@ -7,13 +7,11 @@ extern buddy_allocator_t *s_pBuddyHead;
 void *unusedPointer;
 BUDDY_TEST_START(full_range_memory)
 {
-    buddy_print_memory_offsets();
     for (int i = 0; i < num_blocks; i++)
     {
         tst_OK(buddy_alloc(BUDDY_BLOCK_SIZE, &unusedPointer));
     }
     tst_FAIL(buddy_alloc(BUDDY_BLOCK_SIZE, &unusedPointer));
-    buddy_print_memory_offsets();
 }
 BUDDY_TEST_END
 
@@ -51,7 +49,6 @@ BUDDY_TEST_END
 BUDDY_TEST_START(full_alloc_free)
 {
     void **ptr = malloc(num_blocks * sizeof(void *));
-    buddy_print_memory_offsets();
     for (int i = 0; i < num_blocks; i++)
     {
         tst_OK(buddy_alloc(BUDDY_BLOCK_SIZE, &ptr[i]));
@@ -62,7 +59,6 @@ BUDDY_TEST_START(full_alloc_free)
     {
         tst_OK(buddy_free(ptr[i], BUDDY_BLOCK_SIZE));
     }
-    buddy_print_memory_offsets();
     size_t check_sum = 0;
     for (int i = 0; i < BEST_FIT_BLOCKID(num_blocks) + 1; i++)
     {
@@ -78,7 +74,6 @@ BUDDY_TEST_START(full_alloc_free_32)
 {
     const int size = 32;
     void **ptr = malloc(num_blocks * sizeof(void *));
-    buddy_print_memory_offsets();
     for (int i = 0; i < num_blocks / 32; i++)
     {
         tst_OK(buddy_alloc(size * BUDDY_BLOCK_SIZE, &ptr[i]));
@@ -89,7 +84,6 @@ BUDDY_TEST_START(full_alloc_free_32)
     {
         tst_OK(buddy_free(ptr[i], size * BUDDY_BLOCK_SIZE));
     }
-    buddy_print_memory_offsets();
     size_t check_sum = 0;
     for (int i = 0; i < BEST_FIT_BLOCKID(num_blocks) + 1; i++)
     {

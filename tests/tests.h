@@ -22,6 +22,21 @@
     return true;                                                                                                       \
     }
 
+#define SLAB_TEST_START(name)                                                                                          \
+    static bool tst_##name(size_t Max_Blocks)                                                                          \
+    {                                                                                                                  \
+        printf("\n-> Started test %s\n", #name);                                                                       \
+        const size_t MEMORY_SIZE = (Max_Blocks);                                                                       \
+        void *_ptr = malloc(MEMORY_SIZE * BLOCK_SIZE);                                                                 \
+        kmem_init(_ptr, MEMORY_SIZE);
+
+#define SLAB_TEST_END                                                                                                  \
+    buddy_destroy();                                                                                                   \
+    free(_ptr);                                                                                                        \
+    printf("Done\n");                                                                                                  \
+    return true;                                                                                                       \
+    }
+
 #define TEST_SUITE_START(name, MemSize)                                                                                \
     bool suite_##name()                                                                                                \
     {                                                                                                                  \
