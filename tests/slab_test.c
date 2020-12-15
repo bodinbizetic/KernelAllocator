@@ -5,8 +5,6 @@
 #include "slab_impl.h"
 #include "tests.h"
 
-extern int s_errorFlags;
-
 SLAB_TEST_START(get_slab_pow_two)
 {
     const size_t objSize = 32;
