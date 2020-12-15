@@ -40,7 +40,7 @@ void kmem_init(void *space, int block_num)
     }
 }
 
-static void *slab_allocate_has_space(const kmem_slab_t *pSlab[])
+static void *slab_allocate_has_space(kmem_slab_t *pSlab[])
 {
     if (!pSlab || !pSlab[HAS_SPACE])
         return NULL;
@@ -63,7 +63,7 @@ static void *slab_allocate_has_space(const kmem_slab_t *pSlab[])
     return result;
 }
 
-static void *slab_allocate_empty(const kmem_slab_t *pSlab[])
+static void *slab_allocate_empty(kmem_slab_t *pSlab[])
 {
     if (!pSlab || !pSlab[EMPTY])
         return NULL;
