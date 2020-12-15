@@ -91,11 +91,29 @@ SLAB_TEST_START(alloc_dealloc_mod)
 }
 SLAB_TEST_END
 
+SLAB_TEST_START(big_slab_alloc)
+{
+    const size_t objSize = 2 * BLOCK_SIZE;
+    kmem_slab_t *slab;
+    tst_OK(get_slab(objSize, (void **)&slab));
+    void **curr = &(slab->free);
+    int cnt = 0;
+    while (*curr)
+    {
+        curr = (void *)*curr;
+        cnt++;
+    }
+
+    tst_assert(cnt == (slab->slabSize - sizeof(kmem_slab_t)) / objSize);
+}
+SLAB_TEST_END
+
 TEST_SUITE_START(slab, 1024)
 {
     SUITE_ADD(get_slab_pow_two);
     SUITE_ADD(full_alloc_slab);
     SUITE_ADD(alloc_dealloc);
     SUITE_ADD(alloc_dealloc_mod);
+    SUITE_ADD(big_slab_alloc);
 }
 TEST_SUITE_END

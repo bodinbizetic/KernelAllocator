@@ -19,10 +19,11 @@ int get_slab(size_t objectSize, kmem_slab_t **result)
         *result = NULL;
         return PARAM_ERROR;
     }
-    if (objectSize + sizeof(kmem_slab_t) > BLOCK_SIZE)
+
+    size_t sizeOfSlab = BLOCK_SIZE;
+    if (objectSize + sizeof(kmem_slab_t) > sizeOfSlab)
     {
-        *result = NULL;
-        return SLAB_OBJECT_BIGGER_THAN_BLOCK; // TODO: To Allocate bigger blocks
+        sizeOfSlab = (objectSize + sizeof(kmem_slab_t) - 1) / BLOCK_SIZE + BLOCK_SIZE;
     }
 
     if (objectSize < sizeof(void *))
@@ -30,7 +31,7 @@ int get_slab(size_t objectSize, kmem_slab_t **result)
         objectSize = sizeof(void *);
     }
 
-    int code = buddy_alloc(BLOCK_SIZE, (void **)result);
+    int code = buddy_alloc(sizeOfSlab, (void **)result);
 
     if (code != OK)
     {
@@ -38,16 +39,16 @@ int get_slab(size_t objectSize, kmem_slab_t **result)
         return code;
     }
 
-    (*result)->freeSlots = (BLOCK_SIZE - sizeof(kmem_slab_t)) / objectSize;
+    (*result)->freeSlots = (sizeOfSlab - sizeof(kmem_slab_t)) / objectSize;
     (*result)->free = NULL;
     (*result)->next = NULL;
     (*result)->prev = NULL;
     (*result)->objectSize = objectSize;
-    (*result)->slabSize = BLOCK_SIZE;
+    (*result)->slabSize = sizeOfSlab;
 
     const void *start = (void *)((size_t)*result + sizeof(kmem_slab_t));
     void **prev = NULL;
-    for (size_t i = (size_t)start; i + objectSize < (size_t)*result + BLOCK_SIZE; i += objectSize)
+    for (size_t i = (size_t)start; i + objectSize < (size_t)*result + sizeOfSlab; i += objectSize)
     {
         if (!prev)
             (*result)->free = (void *)i;
