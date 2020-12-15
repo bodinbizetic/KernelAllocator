@@ -108,3 +108,44 @@ void *kmalloc(size_t size)
     const int entryId = BEST_FIT_BLOCKID(size) - 5;
     return slab_allocate_object(s_bufferHead[entryId].pSlab, 1 << BEST_FIT_BLOCKID(size));
 }
+
+static CRESULT slab_kfree_object(kmem_slab_t *pSlab[], const void *objp)
+{
+    kmem_slab_t *slab;
+    CRESULT code = slab_find_slab_with_obj(pSlab[FULL], objp, &slab);
+
+    if (code == OK)
+    {
+        code = slab_free(slab, objp);
+        ASSERT(code == OK);
+        slab_list_delete(&pSlab[FULL], slab);
+    }
+    else
+    {
+        code = slab_find_slab_with_obj(pSlab[HAS_SPACE], objp, &slab);
+        if (code != OK)
+        {
+            return FAIL;
+        }
+        code = slab_free(slab, objp);
+        slab_list_delete(&pSlab[HAS_SPACE], slab);
+    }
+
+    slab_list_insert(&pSlab[(slab->takenSlots ? HAS_SPACE : EMPTY)], slab);
+    return OK;
+}
+
+void kfree(const void *objp)
+{
+    if (!objp)
+        return;
+
+    for (int i = 0; i < BUFFER_ENTRY_NUM; i++)
+    {
+        CRESULT code = slab_kfree_object(s_bufferHead[i].pSlab, objp);
+        if (code == OK)
+            return;
+    }
+
+    ASSERT(false && "Not Reached");
+}

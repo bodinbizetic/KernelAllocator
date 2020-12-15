@@ -112,7 +112,7 @@ SLAB_TEST_START(kmalloc_test_one)
     tst_assert(prev);
     for (int i = 1; i < (BLOCK_SIZE - sizeof(kmem_slab_t)) / objSize; i++)
     {
-        tst_assert(s_bufferHead[0].pSlab[FULL] == NULL);
+        tst_assert(s_bufferHead[entryId].pSlab[FULL] == NULL);
         void *ptr = kmalloc(objSize);
         tst_assert(ptr);
         tst_assert((size_t)ptr - (size_t)prev == objSize);
@@ -146,9 +146,34 @@ SLAB_TEST_START(kmalloc_test_lvlup)
 }
 SLAB_TEST_END
 
+SLAB_TEST_START(kmalloc_kfree)
+{
+    const int entryId = BEST_FIT_BLOCKID(objSize) - 5;
+    tst_assert(entryId >= 0 && entryId <= 12);
+    void *ptr[BLOCK_SIZE];
+    for (int i = 0; i < (BLOCK_SIZE - sizeof(kmem_slab_t)) / objSize; i++)
+    {
+        tst_assert(s_bufferHead[entryId].pSlab[FULL] == NULL);
+        ptr[i] = kmalloc(objSize);
+        tst_assert(ptr[i]);
+    }
+
+    tst_assert(s_bufferHead[entryId].pSlab[FULL] != NULL);
+
+    for (int i = 0; i < (BLOCK_SIZE - sizeof(kmem_slab_t)) / objSize; i++)
+    {
+        kfree(ptr[i]);
+        tst_assert(s_bufferHead[entryId].pSlab[FULL] == NULL);
+    }
+
+    tst_assert(s_bufferHead[entryId].pSlab[HAS_SPACE] == NULL);
+    tst_assert(s_bufferHead[entryId].pSlab[EMPTY] != NULL);
+}
+SLAB_TEST_END
+
 TEST_SUITE_START(slab, 1024)
 {
-    const size_t Obj_Size = 4096;
+    const size_t Obj_Size = 32;
 
     SUITE_ADD_OBJSIZE(get_slab_pow_two, Obj_Size);
     SUITE_ADD_OBJSIZE(full_alloc_slab, Obj_Size);
@@ -157,5 +182,6 @@ TEST_SUITE_START(slab, 1024)
     SUITE_ADD_OBJSIZE(big_slab_alloc, Obj_Size);
     SUITE_ADD_OBJSIZE(kmalloc_test_one, Obj_Size);
     SUITE_ADD_OBJSIZE(kmalloc_test_lvlup, Obj_Size);
+    SUITE_ADD_OBJSIZE(kmalloc_kfree, Obj_Size);
 }
 TEST_SUITE_END

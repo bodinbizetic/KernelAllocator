@@ -54,5 +54,6 @@ CRESULT slab_allocate(kmem_slab_t *slab, void **result);
 CRESULT slab_free(kmem_slab_t *slab, void *ptr);
 CRESULT slab_list_insert(kmem_slab_t **head, kmem_slab_t *slab);
 CRESULT slab_list_delete(kmem_slab_t **head, kmem_slab_t *slab);
+CRESULT slab_find_slab_with_obj(kmem_slab_t *head, const void *ptr, kmem_slab_t **result);
 
 #endif // __slab_impl_H

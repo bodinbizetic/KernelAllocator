@@ -146,7 +146,7 @@ CRESULT slab_list_delete(kmem_slab_t **head, kmem_slab_t *slab)
     return OK;
 }
 
-CRESULT slab_find_slab_with_obj(kmem_slab_t *head, void *ptr, kmem_slab_t **result)
+CRESULT slab_find_slab_with_obj(kmem_slab_t *head, const void *ptr, kmem_slab_t **result)
 {
     if (!result || !ptr || !head)
         return PARAM_ERROR;
@@ -159,6 +159,7 @@ CRESULT slab_find_slab_with_obj(kmem_slab_t *head, void *ptr, kmem_slab_t **resu
             *result = curr;
             return OK;
         }
+        curr = curr->next;
     }
     return FAIL;
 }
