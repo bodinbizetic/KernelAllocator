@@ -1,3 +1,4 @@
+#include "buddy/buddy.h"
 #include "error_codes.h"
 #include "slab_impl.h"
 
@@ -49,6 +50,17 @@ int get_slab(size_t objectSize, kmem_slab_t **result)
         *prev = NULL;
 
     return OK;
+}
+
+int delete_slab(kmem_slab_t *slab)
+{
+    if (!slab)
+        return PARAM_ERROR;
+
+    if (!slab->next || !slab->prev)
+        return SLAB_DELETE_FAIL;
+
+    ASSERT(!buddy_free(slab, slab->slabSize));
 }
 
 int slab_allocate(kmem_slab_t *slab, void **result)
