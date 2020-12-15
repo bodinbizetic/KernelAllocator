@@ -14,6 +14,8 @@
 
 typedef void (*function)(void *);
 
+typedef uint8_t BitMapEntry;
+#define BITMAP_NUM_BITS_ENTRY_POW_2 3
 typedef struct kmem_slab_struct
 {
     struct kmem_slab_struct *next;
@@ -21,8 +23,13 @@ typedef struct kmem_slab_struct
     size_t objectSize;
     size_t slabSize;
     size_t takenSlots;
-    void *free;
+    BitMapEntry *pBitmap;
+    int numBitMapEntry;
+    void *memStart;
 } kmem_slab_t;
+
+#define NUMBER_OF_OBJECTS_IN_SLAB(slab)                                                                                \
+    ((slab->slabSize - sizeof(kmem_slab_t) - slab->numBitMapEntry * sizeof(BitMapEntry)) / slab->objectSize)
 
 enum Slab_Type
 {
@@ -49,9 +56,9 @@ typedef struct kmem_buffer_struct
     kmem_slab_t *pSlab[NUM_TYPES];
 } kmem_buffer_t;
 
-CRESULT get_slab(size_t objectSize, kmem_slab_t **result);
+CRESULT get_slab(size_t objectSize, kmem_slab_t **result, function constructor);
 CRESULT slab_allocate(kmem_slab_t *slab, void **result);
-CRESULT slab_free(kmem_slab_t *slab, void *ptr);
+CRESULT slab_free(kmem_slab_t *slab, const void *ptr);
 CRESULT slab_list_insert(kmem_slab_t **head, kmem_slab_t *slab);
 CRESULT slab_list_delete(kmem_slab_t **head, kmem_slab_t *slab);
 CRESULT slab_find_slab_with_obj(kmem_slab_t *head, const void *ptr, kmem_slab_t **result);

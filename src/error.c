@@ -15,8 +15,8 @@ void printCode(int code)
         printf("SYSTEM_NOT_INITIALIZED\n");
     if (code & SYSTEM_ALREADY_INITIALIZED)
         printf("SYSTEM_ALREADY_INITIALIZED\n");
-    if (code & SLAB_OBJECT_BIGGER_THAN_BLOCK)
-        printf("SLAB_OBJECT_BIGGER_THAN_BLOCK\n");
+    if (code & SLAB_DEALLOC_OBJECT_NOT_IN_SLAB)
+        printf("SLAB_DEALLOC_OBJECT_NOT_IN_SLAB\n");
     if (code & SLAB_FULL)
         printf("SLAB_FULL\n");
     if (code & SLAB_DEALLOC_NOT_VALID_ADDRES)

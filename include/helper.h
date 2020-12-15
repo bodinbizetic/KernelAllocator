@@ -24,7 +24,7 @@
 //******************************************************************//
 // BIT HELPER *******************************************************//
 
-#define FLS(num) (num ? sizeof(num) * CHAR_BIT - __builtin_clz(num) : 0)
+#define FLS(num) (num ? sizeof(int) * CHAR_BIT - __builtin_clz(num) : 0)
 
 // Find first >= POW_TWO
 #define BEST_FIT_BLOCKID(num) (num == 0 ? 0 : FLS(num - 1))

@@ -10,31 +10,37 @@ extern kmem_buffer_t *s_bufferHead;
 SLAB_TEST_START(get_slab_pow_two)
 {
     kmem_slab_t *slab;
-    tst_OK(get_slab(objSize, &slab));
-    void **curr = &(slab->free);
+    tst_OK(get_slab(objSize, &slab, NULL));
+    BitMapEntry *bitmap = slab->pBitmap;
     int cnt = 0;
-    while (*curr)
-    {
-        curr = (void *)*curr;
-        cnt++;
-    }
 
-    tst_assert(cnt == (slab->slabSize - sizeof(kmem_slab_t)) / objSize);
+    for (int i = 0; i < slab->numBitMapEntry; i++)
+    {
+        int n = 1 << sizeof(BitMapEntry) * CHAR_BIT;
+        BitMapEntry num = slab->pBitmap[i];
+        while (n)
+        {
+            cnt += num & 1;
+            num >>= 1;
+            n >>= 1;
+        }
+    }
+    tst_assert(cnt == NUMBER_OF_OBJECTS_IN_SLAB(slab));
 }
 SLAB_TEST_END
 
 SLAB_TEST_START(full_alloc_slab)
 {
     kmem_slab_t *slab;
-    tst_OK(get_slab(objSize, &slab));
+    tst_OK(get_slab(objSize, &slab, NULL));
     tst_assert(slab);
     int i;
     void *last;
-    for (i = 0; i < (slab->slabSize - sizeof(kmem_slab_t)) / objSize; i++)
+    for (i = 0; i < NUMBER_OF_OBJECTS_IN_SLAB(slab); i++)
     {
         tst_OK(slab_allocate(slab, (void **)&last));
     }
-    int x;
+
     tst_FAIL(slab_allocate(slab, (void **)&last) & SLAB_FULL);
 }
 SLAB_TEST_END
@@ -42,7 +48,7 @@ SLAB_TEST_END
 SLAB_TEST_START(alloc_dealloc)
 {
     kmem_slab_t *slab;
-    tst_OK(get_slab(objSize, &slab));
+    tst_OK(get_slab(objSize, &slab, NULL));
     const int numBlocks = slab->takenSlots;
     for (int i = 0; i < 1000; i++)
     {
@@ -57,8 +63,8 @@ SLAB_TEST_END
 SLAB_TEST_START(alloc_dealloc_mod)
 {
     kmem_slab_t *slab;
-    tst_OK(get_slab(objSize, &slab));
-    const int numBlocks = (slab->slabSize - sizeof(*slab)) / objSize;
+    tst_OK(get_slab(objSize, &slab, NULL));
+    const int numBlocks = NUMBER_OF_OBJECTS_IN_SLAB(slab);
     void *ptr[BLOCK_SIZE];
     for (int i = 0; i < numBlocks; i++)
     {
@@ -89,18 +95,23 @@ SLAB_TEST_END
 
 SLAB_TEST_START(big_slab_alloc)
 {
-    const size_t objSize2 = 2 * objSize;
     kmem_slab_t *slab;
-    tst_OK(get_slab(objSize2, &slab));
-    void **curr = &(slab->free);
+    tst_OK(get_slab(1 << 17, &slab, NULL));
+    BitMapEntry *bitmap = slab->pBitmap;
     int cnt = 0;
-    while (*curr)
-    {
-        curr = (void *)*curr;
-        cnt++;
-    }
 
-    tst_assert(cnt == (slab->slabSize - sizeof(kmem_slab_t)) / objSize2);
+    for (int i = 0; i < slab->numBitMapEntry; i++)
+    {
+        int n = 1 << sizeof(BitMapEntry) * CHAR_BIT;
+        BitMapEntry num = slab->pBitmap[i];
+        while (n)
+        {
+            cnt += num & 1;
+            num >>= 1;
+            n >>= 1;
+        }
+    }
+    tst_assert(cnt == NUMBER_OF_OBJECTS_IN_SLAB(slab));
 }
 SLAB_TEST_END
 
@@ -110,12 +121,13 @@ SLAB_TEST_START(kmalloc_test_one)
     const int entryId = BEST_FIT_BLOCKID(objSize) - 5;
     tst_assert(entryId >= 0 && entryId <= 12);
     tst_assert(prev);
-    for (int i = 1; i < (BLOCK_SIZE - sizeof(kmem_slab_t)) / objSize; i++)
+
+    for (int i = 1; i < _numberOfObjectsInSlab; i++)
     {
         tst_assert(s_bufferHead[entryId].pSlab[FULL] == NULL);
         void *ptr = kmalloc(objSize);
         tst_assert(ptr);
-        tst_assert((size_t)ptr - (size_t)prev == objSize);
+        tst_assert((ptr > prev ? 1 : -1) * ((size_t)ptr - (size_t)prev) % objSize == 0);
         prev = ptr;
     }
 
@@ -130,7 +142,7 @@ SLAB_TEST_START(kmalloc_test_lvlup)
     if (objSize + sizeof(kmem_slab_t) > BLOCK_SIZE)
         return true;
     for (int j = 0; j < num_pages_to_alloc; j++)
-        for (int i = 0; i < (BLOCK_SIZE - sizeof(kmem_slab_t)) / objSize; i++)
+        for (int i = 0; i < _numberOfObjectsInSlab; i++)
         {
             void *ptr = kmalloc(objSize);
             tst_assert(ptr);
@@ -151,7 +163,7 @@ SLAB_TEST_START(kmalloc_kfree)
     const int entryId = BEST_FIT_BLOCKID(objSize) - 5;
     tst_assert(entryId >= 0 && entryId <= 12);
     void *ptr[BLOCK_SIZE];
-    for (int i = 0; i < (BLOCK_SIZE - sizeof(kmem_slab_t)) / objSize; i++)
+    for (int i = 0; i < _numberOfObjectsInSlab; i++)
     {
         tst_assert(s_bufferHead[entryId].pSlab[FULL] == NULL);
         ptr[i] = kmalloc(objSize);
@@ -160,7 +172,7 @@ SLAB_TEST_START(kmalloc_kfree)
 
     tst_assert(s_bufferHead[entryId].pSlab[FULL] != NULL);
 
-    for (int i = 0; i < (BLOCK_SIZE - sizeof(kmem_slab_t)) / objSize; i++)
+    for (int i = 0; i < _numberOfObjectsInSlab; i++)
     {
         kfree(ptr[i]);
         tst_assert(s_bufferHead[entryId].pSlab[FULL] == NULL);

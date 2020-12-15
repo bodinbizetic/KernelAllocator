@@ -2,7 +2,39 @@
 #include "error_codes.h"
 #include "slab_impl.h"
 
-CRESULT get_slab(size_t objectSize, kmem_slab_t **result)
+static inline void setBitMap(kmem_slab_t *slab, int id, uint8_t value)
+{
+    const int addr = id >> BITMAP_NUM_BITS_ENTRY_POW_2;
+    const int off = 1 << (id & ((1 << BITMAP_NUM_BITS_ENTRY_POW_2) - 1));
+    slab->pBitmap[addr] = (value ? slab->pBitmap[addr] | off : slab->pBitmap[addr] & ~off);
+}
+
+static inline uint8_t getBitMap(kmem_slab_t *slab, int id)
+{
+    const int addr = id >> BITMAP_NUM_BITS_ENTRY_POW_2;
+    const int off = 1 << (id & ((1 << BITMAP_NUM_BITS_ENTRY_POW_2) - 1));
+    return slab->pBitmap[addr] & off;
+}
+
+CRESULT get_slab_init_bitmap(kmem_slab_t *slab)
+{
+    if (!slab)
+        return PARAM_ERROR;
+
+    slab->numBitMapEntry =
+        (slab->slabSize - sizeof(kmem_slab_t)) / (slab->objectSize * CHAR_BIT * sizeof(BitMapEntry)) + 1;
+    slab->pBitmap = slab->memStart;
+    slab->memStart = (void *)((size_t)slab->memStart + slab->numBitMapEntry * sizeof(BitMapEntry));
+
+    for (int i = 0; i < slab->numBitMapEntry; i++)
+    {
+        slab->pBitmap[i] = 0;
+    }
+
+    return OK;
+}
+
+CRESULT get_slab(size_t objectSize, kmem_slab_t **result, function constructor)
 {
     if (objectSize == 0 || !result)
     {
@@ -14,7 +46,7 @@ CRESULT get_slab(size_t objectSize, kmem_slab_t **result)
     if (objectSize + sizeof(kmem_slab_t) > sizeOfSlab)
     {
         sizeOfSlab = (objectSize + sizeof(kmem_slab_t) - 1) / BLOCK_SIZE + 1;
-        sizeOfSlab *= BLOCK_SIZE;
+        sizeOfSlab = (1 << BEST_FIT_BLOCKID(sizeOfSlab)) * BLOCK_SIZE; // TODO: Check
     }
 
     if (objectSize < sizeof(void *))
@@ -31,29 +63,27 @@ CRESULT get_slab(size_t objectSize, kmem_slab_t **result)
     }
 
     (*result)->takenSlots = 0;
-    (*result)->free = NULL;
     (*result)->next = NULL;
     (*result)->prev = NULL;
     (*result)->objectSize = objectSize;
     (*result)->slabSize = sizeOfSlab;
+    (*result)->pBitmap = NULL;
+    (*result)->memStart = (void *)((size_t)(*result) + sizeof(kmem_slab_t));
 
-    const void *start = (void *)((size_t)*result + sizeof(kmem_slab_t));
-    void **prev = NULL;
+    get_slab_init_bitmap(*result);
+
+    const void *start = (*result)->memStart;
     for (size_t i = (size_t)start; i + objectSize < (size_t)*result + sizeOfSlab; i += objectSize)
     {
-        if (!prev)
-            (*result)->free = (void *)i;
-        else
-            *prev = (void *)i;
-        prev = (void **)i;
+        if (constructor != NULL)
+            constructor((void *)i);
+        setBitMap((*result), (i - (size_t)start) / (*result)->objectSize, 1);
     }
-    if (prev)
-        *prev = NULL;
 
     return OK;
 }
 
-CRESULT delete_slab(kmem_slab_t *slab)
+CRESULT delete_slab(kmem_slab_t *slab, function destructor)
 {
     if (!slab)
         return PARAM_ERROR;
@@ -61,7 +91,16 @@ CRESULT delete_slab(kmem_slab_t *slab)
     if (!slab->next || !slab->prev)
         return SLAB_DELETE_FAIL;
 
-    ASSERT(!buddy_free(slab, slab->slabSize));
+    if (destructor)
+    {
+        for (size_t i = (size_t)slab->memStart; i + slab->objectSize < (size_t)slab + slab->slabSize;
+             i += slab->objectSize)
+        {
+            destructor((void *)i);
+        }
+    }
+
+    buddy_free(slab, slab->slabSize);
 }
 
 CRESULT slab_allocate(kmem_slab_t *slab, void **result)
@@ -71,31 +110,47 @@ CRESULT slab_allocate(kmem_slab_t *slab, void **result)
         *result = NULL;
         return PARAM_ERROR;
     }
-    if (!slab->free)
+
+    int objId = -1;
+    for (int i = 0; i < slab->numBitMapEntry; i++)
+    {
+        if (slab->pBitmap[i])
+        {
+            const int addr = i << BITMAP_NUM_BITS_ENTRY_POW_2;
+            const int off = FLS(slab->pBitmap[i]) - 1;
+
+            objId = (addr) + off;
+            break;
+        }
+    }
+
+    if (objId == -1)
     {
         *result = NULL;
         return SLAB_FULL;
     }
 
-    *result = slab->free;
-    slab->free = *(void **)*result;
+    *result = (void *)((size_t)slab->memStart + slab->objectSize * objId);
+    setBitMap(slab, objId, 0);
     slab->takenSlots++;
 
     return OK;
 }
 
-CRESULT slab_free(kmem_slab_t *slab, void *ptr)
+CRESULT slab_free(kmem_slab_t *slab, const void *ptr)
 {
     if (!slab || !ptr)
         return PARAM_ERROR;
 
-    const void *slabMemStart = (void *)((size_t)slab + sizeof(kmem_slab_t));
+    if (slab->memStart > ptr || (size_t)ptr >= (size_t)slab->memStart + slab->slabSize)
+        return SLAB_DEALLOC_OBJECT_NOT_IN_SLAB;
 
-    if (ptr < slabMemStart || ((size_t)ptr - (size_t)slabMemStart) % slab->objectSize != 0)
+    if (((size_t)slab->memStart - (size_t)ptr) % slab->objectSize != 0)
         return SLAB_DEALLOC_NOT_VALID_ADDRES;
 
-    *(void **)ptr = slab->free;
-    slab->free = ptr;
+    const int id = ((size_t)ptr - (size_t)slab->memStart) / slab->objectSize;
+
+    setBitMap(slab, id, 1);
     slab->takenSlots--;
 
     return OK;

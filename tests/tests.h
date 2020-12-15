@@ -22,6 +22,14 @@
     return true;                                                                                                       \
     }
 
+#define NUMBER_OF_OBJECTS_IN_SLAB_VIRTUAL(objSize, toStore)                                                            \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        kmem_slab_t *slab;                                                                                             \
+        get_slab(objSize, &slab, NULL);                                                                                \
+        toStore = NUMBER_OF_OBJECTS_IN_SLAB(slab);                                                                     \
+    } while (0)
+
 #define SLAB_TEST_START(name)                                                                                          \
     static bool tst_##name(size_t Max_Blocks, size_t Obj_Size)                                                         \
     {                                                                                                                  \
@@ -29,7 +37,9 @@
         const size_t MEMORY_SIZE = (Max_Blocks);                                                                       \
         void *_ptr = malloc(MEMORY_SIZE * BLOCK_SIZE);                                                                 \
         const size_t objSize = Obj_Size;                                                                               \
-        kmem_init(_ptr, MEMORY_SIZE);
+        kmem_init(_ptr, MEMORY_SIZE);                                                                                  \
+        int _numberOfObjectsInSlab;                                                                                    \
+        NUMBER_OF_OBJECTS_IN_SLAB_VIRTUAL(objSize, _numberOfObjectsInSlab);
 
 #define SLAB_TEST_END                                                                                                  \
     buddy_destroy();                                                                                                   \
