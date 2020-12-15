@@ -221,3 +221,14 @@ CRESULT slab_find_slab_with_obj(kmem_slab_t *head, const void *ptr, kmem_slab_t 
     }
     return FAIL;
 }
+
+int kmem_cache_error(kmem_cache_t *cachep)
+{
+    if (cachep->errorFlags == OK)
+        return 0;
+    else
+    {
+        printCode(cachep->errorFlags);
+        return cachep->errorFlags;
+    }
+}
