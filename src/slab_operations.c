@@ -13,7 +13,8 @@ CRESULT get_slab(size_t objectSize, kmem_slab_t **result)
     size_t sizeOfSlab = BLOCK_SIZE;
     if (objectSize + sizeof(kmem_slab_t) > sizeOfSlab)
     {
-        sizeOfSlab = (objectSize + sizeof(kmem_slab_t) - 1) / BLOCK_SIZE + BLOCK_SIZE;
+        sizeOfSlab = (objectSize + sizeof(kmem_slab_t) - 1) / BLOCK_SIZE + 1;
+        sizeOfSlab *= BLOCK_SIZE;
     }
 
     if (objectSize < sizeof(void *))

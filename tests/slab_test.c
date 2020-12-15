@@ -19,7 +19,7 @@ SLAB_TEST_START(get_slab_pow_two)
         cnt++;
     }
 
-    tst_assert(cnt == (BLOCK_SIZE - sizeof(kmem_slab_t)) / objSize);
+    tst_assert(cnt == (slab->slabSize - sizeof(kmem_slab_t)) / objSize);
 }
 SLAB_TEST_END
 
@@ -30,7 +30,7 @@ SLAB_TEST_START(full_alloc_slab)
     tst_assert(slab);
     int i;
     void *last;
-    for (i = 0; i < (BLOCK_SIZE - sizeof(kmem_slab_t)) / objSize; i++)
+    for (i = 0; i < (slab->slabSize - sizeof(kmem_slab_t)) / objSize; i++)
     {
         tst_OK(slab_allocate(slab, (void **)&last));
     }
@@ -107,6 +107,8 @@ SLAB_TEST_END
 SLAB_TEST_START(kmalloc_test_one)
 {
     void *prev = kmalloc(objSize);
+    const int entryId = BEST_FIT_BLOCKID(objSize) - 5;
+    tst_assert(entryId >= 0 && entryId <= 12);
     tst_assert(prev);
     for (int i = 1; i < (BLOCK_SIZE - sizeof(kmem_slab_t)) / objSize; i++)
     {
@@ -117,20 +119,23 @@ SLAB_TEST_START(kmalloc_test_one)
         prev = ptr;
     }
 
-    tst_assert(s_bufferHead[0].pSlab[FULL] != NULL);
+    tst_assert(s_bufferHead[entryId].pSlab[FULL] != NULL);
 }
 SLAB_TEST_END
 
 SLAB_TEST_START(kmalloc_test_lvlup)
 {
     const size_t num_pages_to_alloc = 5;
+    const int entryId = BEST_FIT_BLOCKID(objSize) - 5;
+    if (objSize + sizeof(kmem_slab_t) > BLOCK_SIZE)
+        return true;
     for (int j = 0; j < num_pages_to_alloc; j++)
         for (int i = 0; i < (BLOCK_SIZE - sizeof(kmem_slab_t)) / objSize; i++)
         {
             void *ptr = kmalloc(objSize);
             tst_assert(ptr);
         }
-    kmem_slab_t *curr = s_bufferHead[0].pSlab[FULL];
+    kmem_slab_t *curr = s_bufferHead[entryId].pSlab[FULL];
     int cnt = 0;
     while (curr)
     {
@@ -143,7 +148,7 @@ SLAB_TEST_END
 
 TEST_SUITE_START(slab, 1024)
 {
-    const size_t Obj_Size = 32;
+    const size_t Obj_Size = 4096;
 
     SUITE_ADD_OBJSIZE(get_slab_pow_two, Obj_Size);
     SUITE_ADD_OBJSIZE(full_alloc_slab, Obj_Size);
