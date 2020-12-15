@@ -10,7 +10,8 @@ enum Result_Code
     SYSTEM_NOT_INITIALIZED = 8,
     SYSTEM_ALREADY_INITIALIZED = 16,
     SLAB_OBJECT_BIGGER_THAN_BLOCK = 32,
-    SLAB_FULL = 64
+    SLAB_FULL = 64,
+    SLAB_DEALLOC_NOT_VALID_ADDRES = 128
 };
 
 void printCode(int code);

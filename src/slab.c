@@ -22,7 +22,7 @@ int get_slab(size_t objectSize, kmem_slab_t **result)
     if (objectSize + sizeof(kmem_slab_t) > BLOCK_SIZE)
     {
         *result = NULL;
-        return SLAB_OBJECT_BIGGER_THAN_BLOCK; // TODO: To Allocate
+        return SLAB_OBJECT_BIGGER_THAN_BLOCK; // TODO: To Allocate bigger blocks
     }
 
     if (objectSize < sizeof(void *))
@@ -83,6 +83,19 @@ int slab_allocate(kmem_slab_t *slab, void **result)
 
 int slab_free(kmem_slab_t *slab, void *ptr)
 {
+    if (!slab || !ptr)
+        return PARAM_ERROR;
+
+    const void *slabMemStart = (size_t)slab + sizeof(kmem_slab_t);
+
+    if (ptr < slabMemStart || ((size_t)ptr - (size_t)slabMemStart) % slab->objectSize != 0)
+        return SLAB_DEALLOC_NOT_VALID_ADDRES;
+
+    *(void **)ptr = slab->free;
+    slab->free = ptr;
+    slab->freeSlots++;
+
+    return OK;
 }
 
 static void kmem_buffer_init()
