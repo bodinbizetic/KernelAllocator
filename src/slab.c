@@ -219,10 +219,31 @@ kmem_cache_t *kmem_cache_create(const char *name, size_t size, void (*ctor)(void
     return newCache;
 }
 
+static void slab_deallocate_list(kmem_slab_t **head, function destructor)
+{
+    if (!head)
+        return;
+    kmem_slab_t *curr = *head;
+    while (curr)
+    {
+        kmem_slab_t *next = curr->next;
+        slab_list_delete(head, curr);
+        delete_slab(curr, destructor);
+        curr = next;
+    }
+    *head = NULL;
+}
+
 void kmem_cache_destroy(kmem_cache_t *cachep)
 {
     if (!cachep)
         return NULL;
     s_cacheHead->errorFlags = OK;
+
+    for (enum Slab_Type status = EMPTY; status <= FULL; status++)
+    {
+        slab_deallocate_list(&cachep->pSlab[status], cachep->destructor);
+    }
+
     kmem_cache_free(s_cacheHead, cachep);
 }

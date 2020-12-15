@@ -88,8 +88,11 @@ CRESULT delete_slab(kmem_slab_t *slab, function destructor)
     if (!slab)
         return PARAM_ERROR;
 
-    if (!slab->next || !slab->prev)
+    if (slab->next || slab->prev)
+    {
+        ASSERT(false);
         return SLAB_DELETE_FAIL;
+    }
 
     if (destructor)
     {

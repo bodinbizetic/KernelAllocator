@@ -54,10 +54,45 @@ SLAB_TEST_START(cache_create_delete)
 }
 SLAB_TEST_END
 
+static int Destructor_Count = 0;
+void destructor(void *ptr)
+{
+    Destructor_Count++;
+}
+
+SLAB_TEST_START(cache_create_alloc_delete_destructor)
+{
+    kmem_cache_t *cache;
+    const int ITER = 236;
+    cache = kmem_cache_create("Name", objSize, NULL, destructor);
+    tst_assert(cache);
+    tst_OK(s_cacheHead->errorFlags);
+    void *objects[BLOCK_SIZE];
+    for (int i = 0; i < ITER; i++)
+    {
+        objects[i] = kmem_cache_alloc(cache);
+        tst_assert(objects[i]);
+        tst_OK(cache->errorFlags);
+    }
+
+    Destructor_Count = 0;
+    for (int i = 0; i < ITER; i++)
+    {
+        kmem_cache_free(cache, objects[i]);
+        tst_OK(cache->errorFlags);
+    }
+    kmem_cache_destroy(cache);
+    const int checkSum =
+        ITER - ITER % _numberOfObjectsInSlab + _numberOfObjectsInSlab * (ITER % _numberOfObjectsInSlab ? 1 : 0);
+    tst_assert(Destructor_Count == checkSum);
+}
+SLAB_TEST_END
+
 TEST_SUITE_START(cache, 1024 * 16)
 {
     const size_t Obj_Size = 32;
     SUITE_ADD_OBJSIZE(cache_create, Obj_Size);
     SUITE_ADD_OBJSIZE(cache_create_delete, Obj_Size);
+    SUITE_ADD_OBJSIZE(cache_create_alloc_delete_destructor, Obj_Size);
 }
 TEST_SUITE_END
