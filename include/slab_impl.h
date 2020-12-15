@@ -46,13 +46,11 @@ struct kmem_cache_struct
 typedef struct kmem_buffer_struct
 {
     size_t size;
-    kmem_slab_t *pSlabEmpty;
-    kmem_slab_t *pSlabFull;
-    kmem_slab_t *pSlabHasSpace;
+    kmem_slab_t *pSlab[NUM_TYPES];
 } kmem_buffer_t;
 
-int get_slab(size_t objectSize, kmem_slab_t **result);
-int slab_allocate(kmem_slab_t *slab, void **result);
-int slab_free(kmem_slab_t *slab, void *ptr);
+CRESULT get_slab(size_t objectSize, kmem_slab_t **result);
+CRESULT slab_allocate(kmem_slab_t *slab, void **result);
+CRESULT slab_free(kmem_slab_t *slab, void *ptr);
 
 #endif // __slab_impl_H

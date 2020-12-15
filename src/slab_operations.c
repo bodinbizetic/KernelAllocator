@@ -2,7 +2,7 @@
 #include "error_codes.h"
 #include "slab_impl.h"
 
-int get_slab(size_t objectSize, kmem_slab_t **result)
+CRESULT get_slab(size_t objectSize, kmem_slab_t **result)
 {
     if (objectSize == 0 || !result)
     {
@@ -52,7 +52,7 @@ int get_slab(size_t objectSize, kmem_slab_t **result)
     return OK;
 }
 
-int delete_slab(kmem_slab_t *slab)
+CRESULT delete_slab(kmem_slab_t *slab)
 {
     if (!slab)
         return PARAM_ERROR;
@@ -63,7 +63,7 @@ int delete_slab(kmem_slab_t *slab)
     ASSERT(!buddy_free(slab, slab->slabSize));
 }
 
-int slab_allocate(kmem_slab_t *slab, void **result)
+CRESULT slab_allocate(kmem_slab_t *slab, void **result)
 {
     if (!slab)
     {
@@ -83,7 +83,7 @@ int slab_allocate(kmem_slab_t *slab, void **result)
     return OK;
 }
 
-int slab_free(kmem_slab_t *slab, void *ptr)
+CRESULT slab_free(kmem_slab_t *slab, void *ptr)
 {
     if (!slab || !ptr)
         return PARAM_ERROR;

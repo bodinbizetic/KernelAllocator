@@ -1,6 +1,7 @@
 #ifndef _BUDDY_H_
 #define _BUDDY_H_
 
+#include "error_codes.h"
 #include "helper.h"
 #include <stdint.h>
 #include <stdlib.h>
@@ -31,10 +32,10 @@ typedef struct buddy_allocator_struct
     buddy_table_entry_t *vpMemoryBlocks;
 } buddy_allocator_t;
 
-int buddy_init(void *vpSpace, size_t size);
-int buddy_destroy();
-int buddy_alloc(size_t size, void **result);
-int buddy_free(void *ptr, size_t size);
+CRESULT buddy_init(void *vpSpace, size_t size);
+CRESULT buddy_destroy();
+CRESULT buddy_alloc(size_t size, void **result);
+CRESULT buddy_free(void *ptr, size_t size);
 
 void buddy_print_memory_offsets();
 void buddy_print_bitmap();

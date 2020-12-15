@@ -1,7 +1,7 @@
 #ifndef __ERROR_CODES_H
 #define __ERROR_CODES_H
 
-enum Result_Code
+typedef enum Result_Code_Enum
 {
     OK = 0,
     PARAM_ERROR = 1,
@@ -13,7 +13,7 @@ enum Result_Code
     SLAB_FULL = 64,
     SLAB_DEALLOC_NOT_VALID_ADDRES = 128,
     SLAB_DELETE_FAIL = 256
-};
+} CRESULT;
 
 void printCode(int code);
 

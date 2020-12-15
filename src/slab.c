@@ -19,9 +19,9 @@ static void kmem_buffer_init()
     for (int i = 0; i < BUFFER_ENTRY_NUM; i++)
     {
         s_bufferHead[i].size = 1 << i + BUFFER_SIZE_MIN;
-        s_bufferHead[i].pSlabEmpty = NULL;
-        s_bufferHead[i].pSlabFull = NULL;
-        s_bufferHead[i].pSlabHasSpace = NULL;
+        s_bufferHead[i].pSlab[FULL] = NULL;
+        s_bufferHead[i].pSlab[HAS_SPACE] = NULL;
+        s_bufferHead[i].pSlab[EMPTY] = NULL;
     }
     SLAB_LOG("Initialized buffer memory %ld\n", s_bufferHead);
 }
@@ -44,13 +44,11 @@ void *kmalloc(size_t size)
 {
     const int entryId = BEST_FIT_BLOCKID(size) - 5;
 
-    if (s_bufferHead[entryId].pSlabHasSpace)
+    if (s_bufferHead[entryId].pSlab[HAS_SPACE])
     {
+        void *result;
+        CRESULT code = slab_allocate(s_bufferHead[entryId].pSlab[HAS_SPACE], &result);
     }
 
-    // kmem_slab_t *slab = get_slab(size);
-    /*if (!slab)
-        return NULL;
-*/
     return NULL;
 }

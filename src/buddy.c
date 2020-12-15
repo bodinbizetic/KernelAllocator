@@ -58,7 +58,7 @@ static inline buddy_block_t *getBrother(buddy_block_t *pBlock)
     return (buddy_block_t *)(adr + (size_t)s_pBuddyHead->vpMemoryStart);
 }
 
-static inline int buddy_init_memory_blocks(buddy_allocator_t *pBuddyHead)
+static inline CRESULT buddy_init_memory_blocks(buddy_allocator_t *pBuddyHead)
 {
     if (!pBuddyHead)
         return PARAM_ERROR;
@@ -91,7 +91,7 @@ static inline int buddy_init_memory_blocks(buddy_allocator_t *pBuddyHead)
     return OK;
 }
 
-static int buddy_init_bitmap(buddy_allocator_t *pBuddyHead)
+static CRESULT buddy_init_bitmap(buddy_allocator_t *pBuddyHead)
 {
     if (!pBuddyHead)
         return PARAM_ERROR;
@@ -128,7 +128,7 @@ static int buddy_init_bitmap(buddy_allocator_t *pBuddyHead)
     return OK;
 }
 
-int buddy_init(void *vpSpace, size_t totalSize)
+CRESULT buddy_init(void *vpSpace, size_t totalSize)
 {
     ASSERT(sizeof(buddy_block_t) <= BLOCK_SIZE_POW_TWO);
 
@@ -157,6 +157,8 @@ int buddy_init(void *vpSpace, size_t totalSize)
 
     buddy_init_bitmap(pBuddyHead);
     buddy_init_memory_blocks(pBuddyHead);
+
+    return OK;
 }
 
 static void buddy_remove_from_current_list(buddy_block_t *toRemove)
@@ -265,7 +267,7 @@ static void *buddy_split_buddy_block(uint8_t blockid, uint8_t targetBlockid)
     return toSplitStart;
 }
 
-int buddy_alloc(size_t size, void **result)
+CRESULT buddy_alloc(size_t size, void **result)
 {
     if (!size || !result)
         return PARAM_ERROR;
@@ -330,7 +332,7 @@ static void buddy_merge_propagate(buddy_block_t *pBuddyBlock)
     }
 }
 
-int buddy_free(void *ptr, size_t size)
+CRESULT buddy_free(void *ptr, size_t size)
 {
     if (!ptr || !size)
         return PARAM_ERROR;
@@ -347,7 +349,7 @@ int buddy_free(void *ptr, size_t size)
     return OK;
 }
 
-int buddy_destroy()
+CRESULT buddy_destroy()
 {
     s_pBuddyHead = NULL;
     return OK;
