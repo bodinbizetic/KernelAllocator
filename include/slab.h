@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 
-typedef struct kmem_cache_s kmem_cache_t;
+typedef struct kmem_cache_struct kmem_cache_t;
 
 #define BLOCK_SIZE (4096)
 #define CACHE_L1_LINE_SIZE (64)

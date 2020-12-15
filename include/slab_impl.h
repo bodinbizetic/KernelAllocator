@@ -1,8 +1,8 @@
 #ifndef __slab_impl_H
 #define __slab_impl_H
 
+#include "error_codes.h"
 #include "helper.h"
-#include "slab.h"
 
 #if defined(LOGING) && defined(LOGING_SLAB)
 
@@ -16,6 +16,7 @@ typedef void (*function)(void *);
 
 typedef uint8_t BitMapEntry;
 #define BITMAP_NUM_BITS_ENTRY_POW_2 3
+#define NAME_MAX_LEN 32
 typedef struct kmem_slab_struct
 {
     struct kmem_slab_struct *next;
@@ -46,7 +47,8 @@ struct kmem_cache_struct
     size_t objectSize;
     function constructor;
     function destructor;
-    const char *name;
+    CRESULT errorFlags;
+    char name[NAME_MAX_LEN];
     kmem_slab_t *pSlab[NUM_TYPES];
 };
 
@@ -62,5 +64,7 @@ CRESULT slab_free(kmem_slab_t *slab, const void *ptr);
 CRESULT slab_list_insert(kmem_slab_t **head, kmem_slab_t *slab);
 CRESULT slab_list_delete(kmem_slab_t **head, kmem_slab_t *slab);
 CRESULT slab_find_slab_with_obj(kmem_slab_t *head, const void *ptr, kmem_slab_t **result);
+
+#include "slab.h"
 
 #endif // __slab_impl_H

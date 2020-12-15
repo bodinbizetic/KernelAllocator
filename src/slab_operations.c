@@ -145,7 +145,7 @@ CRESULT slab_free(kmem_slab_t *slab, const void *ptr)
     if (slab->memStart > ptr || (size_t)ptr >= (size_t)slab->memStart + slab->slabSize)
         return SLAB_DEALLOC_OBJECT_NOT_IN_SLAB;
 
-    if (((size_t)slab->memStart - (size_t)ptr) % slab->objectSize != 0)
+    if (((size_t)ptr - (size_t)slab->memStart) % slab->objectSize != 0)
         return SLAB_DEALLOC_NOT_VALID_ADDRES;
 
     const int id = ((size_t)ptr - (size_t)slab->memStart) / slab->objectSize;
