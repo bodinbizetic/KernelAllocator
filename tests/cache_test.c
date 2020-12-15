@@ -98,6 +98,7 @@ SLAB_TEST_START(cache_alloc_free)
     tst_assert(cache->pSlab[EMPTY] != NULL);
     tst_assert(cache->pSlab[HAS_SPACE] == NULL);
     tst_assert(cache->pSlab[FULL] == NULL);
+    tst_assert(kmem_cache_shrink(cache) == 1);
     kmem_cache_destroy(cache);
 
     tst_OK(s_cacheHead->errorFlags);
@@ -108,7 +109,7 @@ SLAB_TEST_END
 SLAB_TEST_START(cache_create_alloc_delete_destructor)
 {
     kmem_cache_t *cache;
-    const int ITER = 236;
+    const int ITER = 1010;
     cache = kmem_cache_create("Name", objSize, NULL, destructor);
     tst_assert(cache);
     tst_OK(s_cacheHead->errorFlags);
@@ -119,7 +120,7 @@ SLAB_TEST_START(cache_create_alloc_delete_destructor)
         tst_assert(objects[i]);
         tst_OK(cache->errorFlags);
     }
-
+    kmem_cache_info(cache);
     Destructor_Count = 0;
     for (int i = 0; i < ITER; i++)
     {

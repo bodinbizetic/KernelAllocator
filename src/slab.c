@@ -219,25 +219,30 @@ kmem_cache_t *kmem_cache_create(const char *name, size_t size, void (*ctor)(void
     return newCache;
 }
 
-static void slab_deallocate_list(kmem_slab_t **head, function destructor)
+static int slab_deallocate_list(kmem_slab_t **head, function destructor)
 {
     if (!head)
         return;
+
+    int cnt = 0;
     kmem_slab_t *curr = *head;
     while (curr)
     {
         kmem_slab_t *next = curr->next;
+        cnt += curr->slabSize / BLOCK_SIZE;
         slab_list_delete(head, curr);
         delete_slab(curr, destructor);
         curr = next;
     }
     *head = NULL;
+
+    return cnt;
 }
 
 void kmem_cache_destroy(kmem_cache_t *cachep)
 {
     if (!cachep)
-        return NULL;
+        return;
     s_cacheHead->errorFlags = OK;
 
     for (enum Slab_Type status = EMPTY; status <= FULL; status++)
@@ -246,4 +251,44 @@ void kmem_cache_destroy(kmem_cache_t *cachep)
     }
 
     kmem_cache_free(s_cacheHead, cachep);
+}
+
+int kmem_cache_shrink(kmem_cache_t *cachep)
+{
+    return slab_deallocate_list(&cachep->pSlab[EMPTY], cachep->destructor);
+}
+
+void kmem_cache_info(kmem_cache_t *cachep)
+{
+    int number_slabs = 0;
+    int number_blocks = 0;
+    int number_objects_free = 0;
+    int maxObjects = 0;
+
+    for (enum Slab_Type status = EMPTY; status <= FULL; status++)
+        for (kmem_slab_t *curr = cachep->pSlab[status]; curr; curr = curr->next)
+        {
+            number_slabs++;
+            number_blocks += curr->slabSize / BLOCK_SIZE;
+            maxObjects += NUMBER_OF_OBJECTS_IN_SLAB(curr);
+            for (int i = 0; i < curr->numBitMapEntry; i++)
+            {
+                int n = 1 << sizeof(BitMapEntry) * CHAR_BIT;
+                BitMapEntry num = curr->pBitmap[i];
+                while (n)
+                {
+                    number_objects_free += num & 1;
+                    num >>= 1;
+                    n >>= 1;
+                }
+            }
+        }
+
+    printf("Cache info\n");
+    printf("Name: %s\n", cachep->name);
+    printf("Object size: %lld\n", cachep->objectSize);
+    printf("Num blocks: %d\n", number_blocks);
+    printf("Number slabs: %d\n", number_slabs);
+    printf("Number objects: %d\n", maxObjects - number_objects_free);
+    printf("Percentage: %f\n", ((double)maxObjects - number_objects_free) / maxObjects);
 }
