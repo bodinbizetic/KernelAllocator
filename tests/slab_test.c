@@ -9,7 +9,6 @@ extern kmem_buffer_t *s_bufferHead;
 
 SLAB_TEST_START(get_slab_pow_two)
 {
-    const size_t objSize = 32;
     kmem_slab_t *slab;
     tst_OK(get_slab(objSize, &slab));
     void **curr = &(slab->free);
@@ -26,7 +25,6 @@ SLAB_TEST_END
 
 SLAB_TEST_START(full_alloc_slab)
 {
-    const size_t objSize = 32;
     kmem_slab_t *slab;
     tst_OK(get_slab(objSize, &slab));
     tst_assert(slab);
@@ -43,7 +41,6 @@ SLAB_TEST_END
 
 SLAB_TEST_START(alloc_dealloc)
 {
-    const size_t objSize = 32;
     kmem_slab_t *slab;
     tst_OK(get_slab(objSize, &slab));
     const int numBlocks = slab->takenSlots;
@@ -59,7 +56,6 @@ SLAB_TEST_END
 
 SLAB_TEST_START(alloc_dealloc_mod)
 {
-    const size_t objSize = 32;
     kmem_slab_t *slab;
     tst_OK(get_slab(objSize, &slab));
     const int numBlocks = (slab->slabSize - sizeof(*slab)) / objSize;
@@ -93,9 +89,9 @@ SLAB_TEST_END
 
 SLAB_TEST_START(big_slab_alloc)
 {
-    const size_t objSize = 2 * BLOCK_SIZE;
+    const size_t objSize2 = 2 * objSize;
     kmem_slab_t *slab;
-    tst_OK(get_slab(objSize, &slab));
+    tst_OK(get_slab(objSize2, &slab));
     void **curr = &(slab->free);
     int cnt = 0;
     while (*curr)
@@ -104,13 +100,12 @@ SLAB_TEST_START(big_slab_alloc)
         cnt++;
     }
 
-    tst_assert(cnt == (slab->slabSize - sizeof(kmem_slab_t)) / objSize);
+    tst_assert(cnt == (slab->slabSize - sizeof(kmem_slab_t)) / objSize2);
 }
 SLAB_TEST_END
 
 SLAB_TEST_START(kmalloc_test_one)
 {
-    const size_t objSize = 32;
     void *prev = kmalloc(objSize);
     tst_assert(prev);
     for (int i = 1; i < (BLOCK_SIZE - sizeof(kmem_slab_t)) / objSize; i++)
@@ -128,7 +123,6 @@ SLAB_TEST_END
 
 SLAB_TEST_START(kmalloc_test_lvlup)
 {
-    const size_t objSize = 32;
     const size_t num_pages_to_alloc = 5;
     for (int j = 0; j < num_pages_to_alloc; j++)
         for (int i = 0; i < (BLOCK_SIZE - sizeof(kmem_slab_t)) / objSize; i++)
@@ -149,12 +143,14 @@ SLAB_TEST_END
 
 TEST_SUITE_START(slab, 1024)
 {
-    SUITE_ADD(get_slab_pow_two);
-    SUITE_ADD(full_alloc_slab);
-    SUITE_ADD(alloc_dealloc);
-    SUITE_ADD(alloc_dealloc_mod);
-    SUITE_ADD(big_slab_alloc);
-    SUITE_ADD(kmalloc_test_one);
-    SUITE_ADD(kmalloc_test_lvlup);
+    const size_t Obj_Size = 32;
+
+    SUITE_ADD_OBJSIZE(get_slab_pow_two, Obj_Size);
+    SUITE_ADD_OBJSIZE(full_alloc_slab, Obj_Size);
+    SUITE_ADD_OBJSIZE(alloc_dealloc, Obj_Size);
+    SUITE_ADD_OBJSIZE(alloc_dealloc_mod, Obj_Size);
+    SUITE_ADD_OBJSIZE(big_slab_alloc, Obj_Size);
+    SUITE_ADD_OBJSIZE(kmalloc_test_one, Obj_Size);
+    SUITE_ADD_OBJSIZE(kmalloc_test_lvlup, Obj_Size);
 }
 TEST_SUITE_END

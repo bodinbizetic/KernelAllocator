@@ -23,11 +23,12 @@
     }
 
 #define SLAB_TEST_START(name)                                                                                          \
-    static bool tst_##name(size_t Max_Blocks)                                                                          \
+    static bool tst_##name(size_t Max_Blocks, size_t Obj_Size)                                                         \
     {                                                                                                                  \
         printf("\n-> Started test %s\n", #name);                                                                       \
         const size_t MEMORY_SIZE = (Max_Blocks);                                                                       \
         void *_ptr = malloc(MEMORY_SIZE * BLOCK_SIZE);                                                                 \
+        const size_t objSize = Obj_Size;                                                                               \
         kmem_init(_ptr, MEMORY_SIZE);
 
 #define SLAB_TEST_END                                                                                                  \
@@ -51,8 +52,12 @@
     return cnt == tst_num_cnt;                                                                                         \
     }
 
-#define SUITE_ADD(name)                                                                                                \
+#define SUITE_ADD(name, ...)                                                                                           \
     cnt += tst_##name(Mem_Size);                                                                                       \
+    tst_num_cnt++;
+
+#define SUITE_ADD_OBJSIZE(name, Size)                                                                                  \
+    cnt += tst_##name(Mem_Size, Size);                                                                                 \
     tst_num_cnt++;
 
 #define tst_assert(x)                                                                                                  \
