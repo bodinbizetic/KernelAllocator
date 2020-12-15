@@ -12,7 +12,8 @@ typedef enum Result_Code_Enum
     SLAB_OBJECT_BIGGER_THAN_BLOCK = 32,
     SLAB_FULL = 64,
     SLAB_DEALLOC_NOT_VALID_ADDRES = 128,
-    SLAB_DELETE_FAIL = 256
+    SLAB_DELETE_FAIL = 256,
+    FAIL = 512
 } CRESULT;
 
 void printCode(int code);

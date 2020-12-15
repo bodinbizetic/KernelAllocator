@@ -20,5 +20,7 @@ void printCode(int code)
     if (code & SLAB_FULL)
         printf("SLAB_FULL\n");
     if (code & SLAB_DEALLOC_NOT_VALID_ADDRES)
-        printf("SLAB_DEALLOC_NOT_VALID_ADDRES = 128\n");
+        printf("SLAB_DEALLOC_NOT_VALID_ADDRES\n");
+    if (code & FAIL)
+        printf("FAIL\n");
 }

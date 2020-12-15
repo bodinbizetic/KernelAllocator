@@ -78,29 +78,33 @@ static void *slab_allocate_empty(kmem_slab_t *pSlab[])
     return slab_allocate_has_space(pSlab);
 }
 
-void *kmalloc(size_t size)
+static void *slab_allocate_object(kmem_slab_t *pSlab[], size_t objSize)
 {
-    const int entryId = BEST_FIT_BLOCKID(size) - 5;
-
-    if (s_bufferHead[entryId].pSlab[HAS_SPACE])
+    if (pSlab[HAS_SPACE])
     {
-        return slab_allocate_has_space(s_bufferHead[entryId].pSlab);
+        return slab_allocate_has_space(pSlab);
     }
 
-    if (s_bufferHead[entryId].pSlab[EMPTY])
+    if (pSlab[EMPTY])
     {
-        return slab_allocate_empty(s_bufferHead[entryId].pSlab);
+        return slab_allocate_empty(pSlab);
     }
     else
     {
         kmem_slab_t *slab;
-        CRESULT code = get_slab(1 << BEST_FIT_BLOCKID(size), &slab);
+        CRESULT code = get_slab(objSize, &slab);
         if (code != OK)
             return NULL;
 
-        slab_list_insert(&s_bufferHead[entryId].pSlab[HAS_SPACE], slab);
-        return slab_allocate_has_space(s_bufferHead[entryId].pSlab);
+        slab_list_insert(&pSlab[HAS_SPACE], slab);
+        return slab_allocate_has_space(pSlab);
     }
 
     return NULL;
+}
+
+void *kmalloc(size_t size)
+{
+    const int entryId = BEST_FIT_BLOCKID(size) - 5;
+    return slab_allocate_object(s_bufferHead[entryId].pSlab, 1 << BEST_FIT_BLOCKID(size));
 }

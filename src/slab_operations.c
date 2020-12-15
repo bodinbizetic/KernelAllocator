@@ -88,7 +88,7 @@ CRESULT slab_free(kmem_slab_t *slab, void *ptr)
     if (!slab || !ptr)
         return PARAM_ERROR;
 
-    const void *slabMemStart = (size_t)slab + sizeof(kmem_slab_t);
+    const void *slabMemStart = (void *)((size_t)slab + sizeof(kmem_slab_t));
 
     if (ptr < slabMemStart || ((size_t)ptr - (size_t)slabMemStart) % slab->objectSize != 0)
         return SLAB_DEALLOC_NOT_VALID_ADDRES;
@@ -100,7 +100,7 @@ CRESULT slab_free(kmem_slab_t *slab, void *ptr)
     return OK;
 }
 
-CRESULT slab_list_insert(kmem_slab_t **head, kmem_slab_t *slab)
+CRESULT slab_list_insert(kmem_slab_t **head, kmem_slab_t *slab) // TODO: Insert in sorted order by memory
 {
     if (!head || !slab)
     {
@@ -143,4 +143,21 @@ CRESULT slab_list_delete(kmem_slab_t **head, kmem_slab_t *slab)
     slab->prev = NULL;
 
     return OK;
+}
+
+CRESULT slab_find_slab_with_obj(kmem_slab_t *head, void *ptr, kmem_slab_t **result)
+{
+    if (!result || !ptr || !head)
+        return PARAM_ERROR;
+
+    kmem_slab_t *curr = head;
+    while (curr)
+    {
+        if (ptr > (void *)curr && ptr < (void *)((size_t)curr + curr->slabSize))
+        {
+            *result = curr;
+            return OK;
+        }
+    }
+    return FAIL;
 }
