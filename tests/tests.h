@@ -48,6 +48,7 @@
 #define TEST_SUITE_END                                                                                                 \
     printf("\n\nSucceeded: %d\nFailed: %d\n", cnt, tst_num_cnt - cnt);                                                 \
     printf("/************Ended suite************/\n");                                                                 \
+    return cnt == tst_num_cnt;                                                                                         \
     }
 
 #define SUITE_ADD(name)                                                                                                \
@@ -57,7 +58,7 @@
 #define tst_assert(x)                                                                                                  \
     if (!(x))                                                                                                          \
     {                                                                                                                  \
-        printf("Assertion failed\nFile: %s\nFunction: %s\nLine: %d\n\n", __FILE__, __FUNCTION__, __LINE__);            \
+        printf("Assertion failed\nFile: %s:%d\nFunction: %s\n\n", __FILE__, __LINE__, __FUNCTION__);                   \
         return false;                                                                                                  \
     }
 

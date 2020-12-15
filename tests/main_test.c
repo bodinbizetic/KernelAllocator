@@ -6,8 +6,10 @@ bool suite_slab();
 
 int main(int argc, char const *argv[])
 {
-    suite_buddy();
-    suite_buddy_2();
-    suite_slab();
+    int cnt = 3;
+    cnt -= suite_buddy();
+    cnt -= suite_buddy_2();
+    cnt -= suite_slab();
+    printf("\n\nSuites failed: %d\n", cnt);
     return 0;
 }

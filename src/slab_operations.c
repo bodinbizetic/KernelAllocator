@@ -29,7 +29,7 @@ CRESULT get_slab(size_t objectSize, kmem_slab_t **result)
         return code;
     }
 
-    (*result)->freeSlots = (sizeOfSlab - sizeof(kmem_slab_t)) / objectSize;
+    (*result)->takenSlots = 0;
     (*result)->free = NULL;
     (*result)->next = NULL;
     (*result)->prev = NULL;
@@ -78,7 +78,7 @@ CRESULT slab_allocate(kmem_slab_t *slab, void **result)
 
     *result = slab->free;
     slab->free = *(void **)*result;
-    slab->freeSlots--;
+    slab->takenSlots++;
 
     return OK;
 }
@@ -95,7 +95,52 @@ CRESULT slab_free(kmem_slab_t *slab, void *ptr)
 
     *(void **)ptr = slab->free;
     slab->free = ptr;
-    slab->freeSlots++;
+    slab->takenSlots--;
+
+    return OK;
+}
+
+CRESULT slab_list_insert(kmem_slab_t **head, kmem_slab_t *slab)
+{
+    if (!head || !slab)
+    {
+        ASSERT(0 && "Slab Param");
+        return PARAM_ERROR;
+    }
+
+    slab->next = *head;
+    slab->prev = NULL;
+    if (*head)
+    {
+        (*head)->prev = slab;
+    }
+    *head = slab;
+
+    return OK;
+}
+
+CRESULT slab_list_delete(kmem_slab_t **head, kmem_slab_t *slab)
+{
+    if (!head || !slab)
+    {
+        ASSERT(0 && "Slab Param");
+        return PARAM_ERROR;
+    }
+
+    if (!slab->prev)
+    {
+        *head = slab->next;
+        if (slab->next)
+            slab->next->prev = NULL;
+    }
+    else
+    {
+        slab->prev->next = slab->next;
+        if (slab->next)
+            slab->next->prev = slab->prev;
+    }
+    slab->next = NULL;
+    slab->prev = NULL;
 
     return OK;
 }

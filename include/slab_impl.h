@@ -20,7 +20,7 @@ typedef struct kmem_slab_struct
     struct kmem_slab_struct *prev;
     size_t objectSize;
     size_t slabSize;
-    size_t freeSlots;
+    size_t takenSlots;
     void *free;
 } kmem_slab_t;
 
@@ -52,5 +52,7 @@ typedef struct kmem_buffer_struct
 CRESULT get_slab(size_t objectSize, kmem_slab_t **result);
 CRESULT slab_allocate(kmem_slab_t *slab, void **result);
 CRESULT slab_free(kmem_slab_t *slab, void *ptr);
+CRESULT slab_list_insert(kmem_slab_t **head, kmem_slab_t *slab);
+CRESULT slab_list_delete(kmem_slab_t **head, kmem_slab_t *slab);
 
 #endif // __slab_impl_H
