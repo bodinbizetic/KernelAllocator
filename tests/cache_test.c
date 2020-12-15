@@ -60,6 +60,51 @@ void destructor(void *ptr)
     Destructor_Count++;
 }
 
+SLAB_TEST_START(cache_alloc_free)
+{
+    kmem_cache_t *cache;
+    const int ITER = 236;
+    cache = kmem_cache_create("Name", objSize, NULL, destructor);
+    tst_assert(cache);
+    tst_OK(s_cacheHead->errorFlags);
+    void *objects[BLOCK_SIZE];
+    for (int i = 0; i < _numberOfObjectsInSlab; i++)
+    {
+        objects[i] = kmem_cache_alloc(cache);
+        tst_assert(objects[i]);
+        tst_OK(cache->errorFlags);
+    }
+
+    Destructor_Count = 0;
+    for (int i = 0; i < _numberOfObjectsInSlab; i++)
+    {
+        kmem_cache_free(cache, objects[i]);
+        tst_OK(cache->errorFlags);
+    }
+
+    for (int i = 0; i < _numberOfObjectsInSlab; i++)
+    {
+        objects[i] = kmem_cache_alloc(cache);
+        tst_assert(objects[i]);
+        tst_OK(cache->errorFlags);
+    }
+
+    for (int i = 0; i < _numberOfObjectsInSlab; i++)
+    {
+        kmem_cache_free(cache, objects[i]);
+        tst_OK(cache->errorFlags);
+    }
+
+    tst_assert(cache->pSlab[EMPTY] != NULL);
+    tst_assert(cache->pSlab[HAS_SPACE] == NULL);
+    tst_assert(cache->pSlab[FULL] == NULL);
+    kmem_cache_destroy(cache);
+
+    tst_OK(s_cacheHead->errorFlags);
+    tst_assert(Destructor_Count == _numberOfObjectsInSlab);
+}
+SLAB_TEST_END
+
 SLAB_TEST_START(cache_create_alloc_delete_destructor)
 {
     kmem_cache_t *cache;
@@ -93,6 +138,7 @@ TEST_SUITE_START(cache, 1024 * 16)
     const size_t Obj_Size = 32;
     SUITE_ADD_OBJSIZE(cache_create, Obj_Size);
     SUITE_ADD_OBJSIZE(cache_create_delete, Obj_Size);
+    SUITE_ADD_OBJSIZE(cache_alloc_free, Obj_Size);
     SUITE_ADD_OBJSIZE(cache_create_alloc_delete_destructor, Obj_Size);
 }
 TEST_SUITE_END
