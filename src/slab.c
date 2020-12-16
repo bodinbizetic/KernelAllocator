@@ -23,6 +23,10 @@ static void kmem_buffer_init()
         s_bufferHead[i].pSlab[FULL] = NULL;
         s_bufferHead[i].pSlab[HAS_SPACE] = NULL;
         s_bufferHead[i].pSlab[EMPTY] = NULL;
+        if (!InitializeCriticalSectionAndSpinCount(&s_bufferHead[i].CriticalSection, 0))
+        {
+            ASSERT(false);
+        }
     }
     SLAB_LOG("Initialized buffer memory %ld\n", s_bufferHead);
 }
@@ -65,9 +69,13 @@ static void *slab_allocate_has_space(kmem_slab_t *pSlab[], CRESULT *retCode)
     if (code != OK)
     {
         *retCode |= code;
+        LOG("[ERROR] %d %d", code, sizeof(kmem_slab_t));
+        PRINT();
         ASSERT(0 && "allocate failed");
         return NULL;
     }
+
+    int x = NUMBER_OF_OBJECTS_IN_SLAB(slab);
     if (pSlab[HAS_SPACE]->takenSlots == NUMBER_OF_OBJECTS_IN_SLAB(slab))
     {
         slab_list_delete(&pSlab[HAS_SPACE], slab);
@@ -122,10 +130,14 @@ static void *slab_allocate_object(kmem_slab_t *pSlab[], size_t objSize, function
 
 void *kmalloc(size_t size)
 {
+    if (!s_bufferHead)
+        return NULL;
     const int entryId = BEST_FIT_BLOCKID(size) - 5;
     CRESULT code = OK;
-    return slab_allocate_object(s_bufferHead[entryId].pSlab, 1 << BEST_FIT_BLOCKID(size), NULL,
-                                &code); // TODO: errorFlags
+    EnterCriticalSection(&s_bufferHead[entryId].CriticalSection);
+    void *ret = slab_allocate_object(s_bufferHead[entryId].pSlab, 1 << BEST_FIT_BLOCKID(size), NULL, &code);
+    LeaveCriticalSection(&s_bufferHead[entryId].CriticalSection);
+    return ret;
 }
 
 static CRESULT slab_kfree_object(kmem_slab_t *pSlab[], const void *objp)
@@ -156,12 +168,14 @@ static CRESULT slab_kfree_object(kmem_slab_t *pSlab[], const void *objp)
 
 void kfree(const void *objp)
 {
-    if (!objp)
+    if (!objp || !s_bufferHead)
         return;
 
     for (int i = 0; i < BUFFER_ENTRY_NUM; i++)
     {
+        EnterCriticalSection(&s_bufferHead[i].CriticalSection);
         CRESULT code = slab_kfree_object(s_bufferHead[i].pSlab, objp);
+        LeaveCriticalSection(&s_bufferHead[i].CriticalSection);
         if (code == OK)
             return;
     }
@@ -174,7 +188,10 @@ void *kmem_cache_alloc(kmem_cache_t *cachep)
     if (!cachep)
         return NULL;
 
-    return slab_allocate_object(cachep->pSlab, cachep->objectSize, cachep->constructor, &cachep->errorFlags);
+    EnterCriticalSection(&cachep->CriticalSection);
+    void *ret = slab_allocate_object(cachep->pSlab, cachep->objectSize, cachep->constructor, &cachep->errorFlags);
+    LeaveCriticalSection(&cachep->CriticalSection);
+    return ret;
 }
 
 void kmem_cache_free(kmem_cache_t *cachep, void *objp)
@@ -182,7 +199,9 @@ void kmem_cache_free(kmem_cache_t *cachep, void *objp)
     if (!cachep || !objp)
         return;
 
+    EnterCriticalSection(&cachep->CriticalSection);
     cachep->errorFlags = slab_kfree_object(cachep->pSlab, objp);
+    LeaveCriticalSection(&cachep->CriticalSection);
 }
 
 static void kmem_create_cache_init_state(kmem_cache_t *cache, const char *name, size_t size, void (*ctor)(void *),
@@ -195,11 +214,14 @@ static void kmem_create_cache_init_state(kmem_cache_t *cache, const char *name, 
     cache->objectSize = size;
     cache->errorFlags = OK;
     strncpy(cache->name, name, NAME_MAX_LEN - 1);
-    cache->next = NULL;
-    cache->prev = NULL;
     cache->pSlab[EMPTY] = NULL;
     cache->pSlab[HAS_SPACE] = NULL;
     cache->pSlab[FULL] = NULL;
+
+    if (!InitializeCriticalSectionAndSpinCount(&cache->CriticalSection, 0x1))
+    {
+        ASSERT(false);
+    }
 }
 
 kmem_cache_t *kmem_cache_create(const char *name, size_t size, void (*ctor)(void *), void (*dtor)(void *))
@@ -207,14 +229,15 @@ kmem_cache_t *kmem_cache_create(const char *name, size_t size, void (*ctor)(void
     if (!size)
         return NULL;
 
+    EnterCriticalSection(&s_cacheHead->CriticalSection);
     s_cacheHead->errorFlags = OK;
     kmem_cache_t *newCache = kmem_cache_alloc(s_cacheHead);
     if (s_cacheHead->errorFlags != OK)
     {
         return NULL;
     }
-
     kmem_create_cache_init_state(newCache, name, size, ctor, dtor);
+    LeaveCriticalSection(&s_cacheHead->CriticalSection);
 
     return newCache;
 }
@@ -222,7 +245,7 @@ kmem_cache_t *kmem_cache_create(const char *name, size_t size, void (*ctor)(void
 static int slab_deallocate_list(kmem_slab_t **head, function destructor)
 {
     if (!head)
-        return;
+        return 0;
 
     int cnt = 0;
     kmem_slab_t *curr = *head;
@@ -243,19 +266,29 @@ void kmem_cache_destroy(kmem_cache_t *cachep)
 {
     if (!cachep)
         return;
-    s_cacheHead->errorFlags = OK;
 
+    EnterCriticalSection(&cachep->CriticalSection);
     for (enum Slab_Type status = EMPTY; status <= FULL; status++)
     {
         slab_deallocate_list(&cachep->pSlab[status], cachep->destructor);
     }
+    LeaveCriticalSection(&cachep->CriticalSection);
 
+    DeleteCriticalSection(&cachep->CriticalSection);
+
+    s_cacheHead->errorFlags = OK;
+
+    EnterCriticalSection(&s_cacheHead->CriticalSection);
     kmem_cache_free(s_cacheHead, cachep);
+    LeaveCriticalSection(&s_cacheHead->CriticalSection);
 }
 
 int kmem_cache_shrink(kmem_cache_t *cachep)
 {
-    return slab_deallocate_list(&cachep->pSlab[EMPTY], cachep->destructor);
+    EnterCriticalSection(&cachep->CriticalSection);
+    int ret = slab_deallocate_list(&cachep->pSlab[EMPTY], cachep->destructor);
+    LeaveCriticalSection(&cachep->CriticalSection);
+    return ret;
 }
 
 void kmem_cache_info(kmem_cache_t *cachep)
@@ -265,6 +298,7 @@ void kmem_cache_info(kmem_cache_t *cachep)
     int number_objects_free = 0;
     int maxObjects = 0;
 
+    EnterCriticalSection(&cachep->CriticalSection);
     for (enum Slab_Type status = EMPTY; status <= FULL; status++)
         for (kmem_slab_t *curr = cachep->pSlab[status]; curr; curr = curr->next)
         {
@@ -283,10 +317,10 @@ void kmem_cache_info(kmem_cache_t *cachep)
                 }
             }
         }
-
+    LeaveCriticalSection(&cachep->CriticalSection);
     printf("Cache info\n");
     printf("Name: %s\n", cachep->name);
-    printf("Object size: %lld\n", cachep->objectSize);
+    printf("Object size: %llu\n", (unsigned long long)cachep->objectSize);
     printf("Num blocks: %d\n", number_blocks);
     printf("Number slabs: %d\n", number_slabs);
     printf("Number objects: %d\n", maxObjects - number_objects_free);

@@ -157,7 +157,7 @@ CRESULT buddy_init(void *vpSpace, size_t totalSize)
 
     buddy_init_bitmap(pBuddyHead);
     buddy_init_memory_blocks(pBuddyHead);
-
+    InitializeCriticalSectionAndSpinCount(&pBuddyHead->CriticalSection, 0x1);
     return OK;
 }
 

@@ -5,6 +5,7 @@
 #include "helper.h"
 #include <stdint.h>
 #include <stdlib.h>
+#include <windows.h>
 
 #define BUDDY_BLOCK_SIZE 4096
 
@@ -30,6 +31,7 @@ typedef struct buddy_allocator_struct
     void *vpMemoryStart;
     size_t memorySize;
     buddy_table_entry_t *vpMemoryBlocks;
+    CRITICAL_SECTION CriticalSection;
 } buddy_allocator_t;
 
 CRESULT buddy_init(void *vpSpace, size_t size);

@@ -2,6 +2,8 @@
 #include "error_codes.h"
 #include "slab_impl.h"
 
+extern buddy_allocator_t *s_pBuddyHead;
+
 static inline void setBitMap(kmem_slab_t *slab, int id, uint8_t value)
 {
     const int addr = id >> BITMAP_NUM_BITS_ENTRY_POW_2;
@@ -49,12 +51,9 @@ CRESULT get_slab(size_t objectSize, kmem_slab_t **result, function constructor)
         sizeOfSlab = (1 << BEST_FIT_BLOCKID(sizeOfSlab)) * BLOCK_SIZE; // TODO: Check
     }
 
-    if (objectSize < sizeof(void *))
-    {
-        objectSize = sizeof(void *);
-    }
-
+    EnterCriticalSection(&s_pBuddyHead->CriticalSection);
     int code = buddy_alloc(sizeOfSlab, (void **)result);
+    LeaveCriticalSection(&s_pBuddyHead->CriticalSection);
 
     if (code != OK)
     {
@@ -73,7 +72,7 @@ CRESULT get_slab(size_t objectSize, kmem_slab_t **result, function constructor)
     get_slab_init_bitmap(*result);
 
     const void *start = (*result)->memStart;
-    for (size_t i = (size_t)start; i + objectSize < (size_t)*result + sizeOfSlab; i += objectSize)
+    for (size_t i = (size_t)start; i + objectSize <= (size_t)*result + sizeOfSlab; i += objectSize)
     {
         if (constructor != NULL)
             constructor((void *)i);
@@ -96,14 +95,15 @@ CRESULT delete_slab(kmem_slab_t *slab, function destructor)
 
     if (destructor)
     {
-        for (size_t i = (size_t)slab->memStart; i + slab->objectSize < (size_t)slab + slab->slabSize;
+        for (size_t i = (size_t)slab->memStart; i + slab->objectSize <= (size_t)slab + slab->slabSize;
              i += slab->objectSize)
         {
             destructor((void *)i);
         }
     }
-
+    EnterCriticalSection(&s_pBuddyHead->CriticalSection);
     buddy_free(slab, slab->slabSize);
+    LeaveCriticalSection(&s_pBuddyHead->CriticalSection);
 }
 
 CRESULT slab_allocate(kmem_slab_t *slab, void **result)

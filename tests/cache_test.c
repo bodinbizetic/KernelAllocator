@@ -103,13 +103,14 @@ SLAB_TEST_START(cache_alloc_free)
 
     tst_OK(s_cacheHead->errorFlags);
     tst_assert(Destructor_Count == _numberOfObjectsInSlab);
+    buddy_destroy();
 }
 SLAB_TEST_END
 
 SLAB_TEST_START(cache_create_alloc_delete_destructor)
 {
     kmem_cache_t *cache;
-    const int ITER = 1010;
+    const int ITER = _numberOfObjectsInSlab;
     cache = kmem_cache_create("Name", objSize, NULL, destructor);
     tst_assert(cache);
     tst_OK(s_cacheHead->errorFlags);
@@ -136,7 +137,7 @@ SLAB_TEST_END
 
 TEST_SUITE_START(cache, 1024 * 16)
 {
-    const size_t Obj_Size = 32;
+    const size_t Obj_Size = 1;
     SUITE_ADD_OBJSIZE(cache_create, Obj_Size);
     SUITE_ADD_OBJSIZE(cache_create_delete, Obj_Size);
     SUITE_ADD_OBJSIZE(cache_alloc_free, Obj_Size);

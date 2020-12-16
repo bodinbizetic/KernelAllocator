@@ -3,6 +3,7 @@
 
 #include "error_codes.h"
 #include "helper.h"
+#include <windows.h>
 
 #if defined(LOGING) && defined(LOGING_SLAB)
 
@@ -42,8 +43,7 @@ enum Slab_Type
 
 struct kmem_cache_struct
 {
-    struct kmem_cache_struct *next;
-    struct kmem_cache_struct *prev;
+    CRITICAL_SECTION CriticalSection;
     size_t objectSize;
     function constructor;
     function destructor;
@@ -55,6 +55,7 @@ struct kmem_cache_struct
 typedef struct kmem_buffer_struct
 {
     size_t size;
+    CRITICAL_SECTION CriticalSection;
     kmem_slab_t *pSlab[NUM_TYPES];
 } kmem_buffer_t;
 
