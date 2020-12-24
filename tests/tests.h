@@ -26,7 +26,7 @@
     do                                                                                                                 \
     {                                                                                                                  \
         kmem_slab_t *slab;                                                                                             \
-        get_slab(objSize, &slab, NULL);                                                                                \
+        get_slab(objSize, &slab);                                                                                      \
         toStore = NUMBER_OF_OBJECTS_IN_SLAB(slab);                                                                     \
     } while (0)
 

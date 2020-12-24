@@ -36,7 +36,7 @@ CRESULT get_slab_init_bitmap(kmem_slab_t *slab)
     return OK;
 }
 
-CRESULT get_slab(size_t objectSize, kmem_slab_t **result, function constructor)
+CRESULT get_slab(size_t objectSize, kmem_slab_t **result)
 {
     if (objectSize == 0 || !result)
     {
@@ -74,8 +74,6 @@ CRESULT get_slab(size_t objectSize, kmem_slab_t **result, function constructor)
     const void *start = (*result)->memStart;
     for (size_t i = (size_t)start; i + objectSize <= (size_t)*result + sizeOfSlab; i += objectSize)
     {
-        if (constructor != NULL)
-            constructor((void *)i);
         setBitMap((*result), (i - (size_t)start) / (*result)->objectSize, 1);
     }
 

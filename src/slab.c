@@ -102,19 +102,19 @@ static void *slab_allocate_empty(kmem_slab_t *pSlab[], CRESULT *retCode)
 
 static void *slab_allocate_object(kmem_slab_t *pSlab[], size_t objSize, function constructor, CRESULT *retCode)
 {
+    void *result = NULL;
     if (pSlab[HAS_SPACE])
     {
-        return slab_allocate_has_space(pSlab, retCode);
+        result = slab_allocate_has_space(pSlab, retCode);
     }
-
-    if (pSlab[EMPTY])
+    else if (pSlab[EMPTY])
     {
-        return slab_allocate_empty(pSlab, retCode);
+        result = slab_allocate_empty(pSlab, retCode);
     }
     else
     {
         kmem_slab_t *slab;
-        CRESULT code = get_slab(objSize, &slab, constructor);
+        CRESULT code = get_slab(objSize, &slab);
         if (code != OK)
         {
             *retCode |= code;
@@ -122,10 +122,15 @@ static void *slab_allocate_object(kmem_slab_t *pSlab[], size_t objSize, function
         }
 
         slab_list_insert(&pSlab[HAS_SPACE], slab);
-        return slab_allocate_has_space(pSlab, retCode);
+        result = slab_allocate_has_space(pSlab, retCode);
     }
 
-    return NULL;
+    if (constructor)
+    {
+        constructor(result);
+    }
+
+    return result;
 }
 
 void *kmalloc(size_t size)

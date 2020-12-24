@@ -59,7 +59,7 @@ typedef struct kmem_buffer_struct
     kmem_slab_t *pSlab[NUM_TYPES];
 } kmem_buffer_t;
 
-CRESULT get_slab(size_t objectSize, kmem_slab_t **result, function constructor);
+CRESULT get_slab(size_t objectSize, kmem_slab_t **result);
 CRESULT delete_slab(kmem_slab_t *slab, function destructor);
 CRESULT slab_allocate(kmem_slab_t *slab, void **result);
 CRESULT slab_free(kmem_slab_t *slab, const void *ptr);

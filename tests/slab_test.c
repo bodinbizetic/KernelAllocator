@@ -10,7 +10,7 @@ extern kmem_buffer_t *s_bufferHead;
 SLAB_TEST_START(get_slab_pow_two)
 {
     kmem_slab_t *slab;
-    tst_OK(get_slab(objSize, &slab, NULL));
+    tst_OK(get_slab(objSize, &slab));
     BitMapEntry *bitmap = slab->pBitmap;
     int cnt = 0;
 
@@ -32,7 +32,7 @@ SLAB_TEST_END
 SLAB_TEST_START(full_alloc_slab)
 {
     kmem_slab_t *slab;
-    tst_OK(get_slab(objSize, &slab, NULL));
+    tst_OK(get_slab(objSize, &slab));
     tst_assert(slab);
     int i;
     void *last;
@@ -48,7 +48,7 @@ SLAB_TEST_END
 SLAB_TEST_START(alloc_dealloc)
 {
     kmem_slab_t *slab;
-    tst_OK(get_slab(objSize, &slab, NULL));
+    tst_OK(get_slab(objSize, &slab));
     const int numBlocks = slab->takenSlots;
     for (int i = 0; i < 1000; i++)
     {
@@ -63,7 +63,7 @@ SLAB_TEST_END
 SLAB_TEST_START(alloc_dealloc_mod)
 {
     kmem_slab_t *slab;
-    tst_OK(get_slab(objSize, &slab, NULL));
+    tst_OK(get_slab(objSize, &slab));
     const int numBlocks = NUMBER_OF_OBJECTS_IN_SLAB(slab);
     void *ptr[BLOCK_SIZE];
     for (int i = 0; i < numBlocks; i++)
@@ -96,7 +96,7 @@ SLAB_TEST_END
 SLAB_TEST_START(big_slab_alloc)
 {
     kmem_slab_t *slab;
-    tst_OK(get_slab(1 << 17, &slab, NULL));
+    tst_OK(get_slab(1 << 17, &slab));
     BitMapEntry *bitmap = slab->pBitmap;
     int cnt = 0;
 
