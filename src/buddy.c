@@ -289,6 +289,11 @@ CRESULT buddy_alloc(size_t size, void **result)
         s_pBuddyHead->vpMemoryBlocks[BEST_FIT_BLOCKID(numBlocks)].block =
             s_pBuddyHead->vpMemoryBlocks[BEST_FIT_BLOCKID(numBlocks)].block->next;
 
+        if (s_pBuddyHead->vpMemoryBlocks[BEST_FIT_BLOCKID(numBlocks)].block)
+        {
+            s_pBuddyHead->vpMemoryBlocks[BEST_FIT_BLOCKID(numBlocks)].block->prev = NULL;
+        }
+
         setBitMapBit(*result, BEST_FIT_BLOCKID(numBlocks), 0);
     }
     else

@@ -234,6 +234,7 @@ kmem_cache_t *kmem_cache_create(const char *name, size_t size, void (*ctor)(void
     kmem_cache_t *newCache = kmem_cache_alloc(s_cacheHead);
     if (s_cacheHead->errorFlags != OK)
     {
+        LeaveCriticalSection(&s_cacheHead->CriticalSection);
         return NULL;
     }
     kmem_create_cache_init_state(newCache, name, size, ctor, dtor);
