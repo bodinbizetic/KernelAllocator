@@ -53,6 +53,10 @@ void kmem_init(void *space, int block_num)
         kmem_buffer_init();
         kmem_cache_init();
     }
+    else
+    {
+        LOG("[KMEMINIT ERROR] %d", code);
+    }
 }
 
 static void *slab_allocate_has_space(kmem_slab_t *pSlab[], CRESULT *retCode)
@@ -145,13 +149,17 @@ void *kmalloc(size_t size)
     return ret;
 }
 
-static CRESULT slab_kfree_object(kmem_slab_t *pSlab[], const void *objp)
+static CRESULT slab_kfree_object(kmem_slab_t *pSlab[], void *objp, function destructor)
 {
     kmem_slab_t *slab;
     CRESULT code = slab_find_slab_with_obj(pSlab[FULL], objp, &slab);
 
     if (code == OK)
     {
+        if (destructor)
+        {
+            destructor(objp);
+        }
         code = slab_free(slab, objp);
         ASSERT(code == OK);
         slab_list_delete(&pSlab[FULL], slab);
@@ -162,6 +170,11 @@ static CRESULT slab_kfree_object(kmem_slab_t *pSlab[], const void *objp)
         if (code != OK)
         {
             return FAIL;
+        }
+
+        if (destructor)
+        {
+            destructor(objp);
         }
         code = slab_free(slab, objp);
         slab_list_delete(&pSlab[HAS_SPACE], slab);
@@ -179,7 +192,7 @@ void kfree(const void *objp)
     for (int i = 0; i < BUFFER_ENTRY_NUM; i++)
     {
         EnterCriticalSection(&s_bufferHead[i].CriticalSection);
-        CRESULT code = slab_kfree_object(s_bufferHead[i].pSlab, objp);
+        CRESULT code = slab_kfree_object(s_bufferHead[i].pSlab, objp, NULL);
         LeaveCriticalSection(&s_bufferHead[i].CriticalSection);
         if (code == OK)
             return;
@@ -205,7 +218,7 @@ void kmem_cache_free(kmem_cache_t *cachep, void *objp)
         return;
 
     EnterCriticalSection(&cachep->CriticalSection);
-    cachep->errorFlags = slab_kfree_object(cachep->pSlab, objp);
+    cachep->errorFlags = slab_kfree_object(cachep->pSlab, objp, cachep->destructor);
     LeaveCriticalSection(&cachep->CriticalSection);
 }
 
@@ -248,7 +261,7 @@ kmem_cache_t *kmem_cache_create(const char *name, size_t size, void (*ctor)(void
     return newCache;
 }
 
-static int slab_deallocate_list(kmem_slab_t **head, function destructor)
+static int slab_deallocate_list(kmem_slab_t **head)
 {
     if (!head)
         return 0;
@@ -260,7 +273,7 @@ static int slab_deallocate_list(kmem_slab_t **head, function destructor)
         kmem_slab_t *next = curr->next;
         cnt += curr->slabSize / BLOCK_SIZE;
         slab_list_delete(head, curr);
-        delete_slab(curr, destructor);
+        delete_slab(curr);
         curr = next;
     }
     *head = NULL;
@@ -276,7 +289,7 @@ void kmem_cache_destroy(kmem_cache_t *cachep)
     EnterCriticalSection(&cachep->CriticalSection);
     for (enum Slab_Type status = EMPTY; status <= FULL; status++)
     {
-        slab_deallocate_list(&cachep->pSlab[status], cachep->destructor);
+        slab_deallocate_list(&cachep->pSlab[status]);
     }
     LeaveCriticalSection(&cachep->CriticalSection);
 
@@ -292,7 +305,7 @@ void kmem_cache_destroy(kmem_cache_t *cachep)
 int kmem_cache_shrink(kmem_cache_t *cachep)
 {
     EnterCriticalSection(&cachep->CriticalSection);
-    int ret = slab_deallocate_list(&cachep->pSlab[EMPTY], cachep->destructor);
+    int ret = slab_deallocate_list(&cachep->pSlab[EMPTY]);
     LeaveCriticalSection(&cachep->CriticalSection);
     return ret;
 }

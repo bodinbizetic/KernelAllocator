@@ -80,7 +80,7 @@ CRESULT get_slab(size_t objectSize, kmem_slab_t **result)
     return OK;
 }
 
-CRESULT delete_slab(kmem_slab_t *slab, function destructor)
+CRESULT delete_slab(kmem_slab_t *slab)
 {
     if (!slab)
         return PARAM_ERROR;
@@ -91,14 +91,6 @@ CRESULT delete_slab(kmem_slab_t *slab, function destructor)
         return SLAB_DELETE_FAIL;
     }
 
-    if (destructor)
-    {
-        for (size_t i = (size_t)slab->memStart; i + slab->objectSize <= (size_t)slab + slab->slabSize;
-             i += slab->objectSize)
-        {
-            destructor((void *)i);
-        }
-    }
     EnterCriticalSection(&s_pBuddyHead->CriticalSection);
     buddy_free(slab, slab->slabSize);
     LeaveCriticalSection(&s_pBuddyHead->CriticalSection);

@@ -102,7 +102,7 @@ SLAB_TEST_START(cache_alloc_free)
     kmem_cache_destroy(cache);
 
     tst_OK(s_cacheHead->errorFlags);
-    tst_assert(Destructor_Count == _numberOfObjectsInSlab);
+    tst_assert(Destructor_Count == 2 * _numberOfObjectsInSlab);
     buddy_destroy();
 }
 SLAB_TEST_END

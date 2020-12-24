@@ -140,8 +140,8 @@ CRESULT buddy_init(void *vpSpace, size_t totalSize)
     if (sizeof(buddy_allocator_t) + Num_Blocks * sizeof(buddy_block_t *) >= totalSize)
         return NOT_ENOUGH_MEMORY_TO_INIT;
 
-    if (s_pBuddyHead)
-        return SYSTEM_ALREADY_INITIALIZED;
+    /*if (s_pBuddyHead)
+        return SYSTEM_ALREADY_INITIALIZED;*/
 
     int resultCode = OK;
     buddy_allocator_t *pBuddyHead = (buddy_allocator_t *)vpSpace;
