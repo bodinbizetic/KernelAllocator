@@ -235,7 +235,7 @@ static void kmem_create_cache_init_state(kmem_cache_t *cache, const char *name, 
     cache->destructor = dtor;
     cache->objectSize = size;
     cache->errorFlags = OK;
-    strncpy(cache->name, name, NAME_MAX_LEN - 1);
+    strncpy_s(cache->name, NAME_MAX_LEN - 1, name, NAME_MAX_LEN - 1);
     cache->l1CacheFiller = 0;
     cache->pSlab[EMPTY] = NULL;
     cache->pSlab[HAS_SPACE] = NULL;
@@ -249,7 +249,7 @@ static void kmem_create_cache_init_state(kmem_cache_t *cache, const char *name, 
 
 kmem_cache_t *kmem_cache_create(const char *name, size_t size, void (*ctor)(void *), void (*dtor)(void *))
 {
-    if (!size)
+    if (!size || !name)
         return NULL;
 
     EnterCriticalSection(&s_cacheHead->CriticalSection);

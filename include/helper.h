@@ -23,8 +23,24 @@
 
 //******************************************************************//
 // BIT HELPER *******************************************************//
+#if defined(WIN32) || defined(WIN64)
+#include <stdint.h>
 
+static uint64_t __inline clz(uint64_t value)
+{
+    int sol = 0;
+    while (value)
+    {
+        sol++;
+        value >>= 1;
+    }
+    return sol;
+}
+
+#define FLS(num) clz(num)
+#else
 #define FLS(num) (num ? sizeof(int) * CHAR_BIT - __builtin_clz(num) : 0)
+#endif
 
 // Find first >= POW_TWO
 #define BEST_FIT_BLOCKID(num) (num == 0 ? 0 : FLS(num - 1))

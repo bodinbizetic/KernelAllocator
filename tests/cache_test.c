@@ -12,7 +12,7 @@ SLAB_TEST_START(cache_create)
     for (int i = 0; i < ITER; i++)
     {
         char c[30];
-        ptr[i] = kmem_cache_create(_itoa(i, c, 10), 100, NULL, NULL);
+        ptr[i] = kmem_cache_create("MyCache", 100, NULL, NULL);
         tst_assert(ptr[i]);
         tst_OK(s_cacheHead->errorFlags);
     }
@@ -33,7 +33,7 @@ SLAB_TEST_START(cache_create_delete)
     for (int i = 0; i < ITER; i++)
     {
         char c[30];
-        ptr[i] = kmem_cache_create(_itoa(i, c, 10), 100, NULL, NULL);
+        ptr[i] = kmem_cache_create("MyCache", 100, NULL, NULL);
         tst_assert(ptr[i]);
         tst_OK(s_cacheHead->errorFlags);
     }
