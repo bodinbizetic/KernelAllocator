@@ -20,6 +20,7 @@ static void kmem_buffer_init()
     for (int i = 0; i < BUFFER_ENTRY_NUM; i++)
     {
         s_bufferHead[i].size = 1 << i + BUFFER_SIZE_MIN;
+        s_bufferHead[i].l1CacheFiller = 0;
         s_bufferHead[i].pSlab[FULL] = NULL;
         s_bufferHead[i].pSlab[HAS_SPACE] = NULL;
         s_bufferHead[i].pSlab[EMPTY] = NULL;
@@ -104,7 +105,8 @@ static void *slab_allocate_empty(kmem_slab_t *pSlab[], CRESULT *retCode)
     return slab_allocate_has_space(pSlab, retCode);
 }
 
-static void *slab_allocate_object(kmem_slab_t *pSlab[], size_t objSize, function constructor, CRESULT *retCode)
+static void *slab_allocate_object(kmem_slab_t *pSlab[], size_t objSize, function constructor, size_t *l1CacheOffset,
+                                  CRESULT *retCode)
 {
     void *result = NULL;
     if (pSlab[HAS_SPACE])
@@ -118,7 +120,7 @@ static void *slab_allocate_object(kmem_slab_t *pSlab[], size_t objSize, function
     else
     {
         kmem_slab_t *slab;
-        CRESULT code = get_slab(objSize, &slab);
+        CRESULT code = get_slab(objSize, l1CacheOffset, &slab);
         if (code != OK)
         {
             *retCode |= code;
@@ -144,7 +146,8 @@ void *kmalloc(size_t size)
     const int entryId = BEST_FIT_BLOCKID(size) - 5;
     CRESULT code = OK;
     EnterCriticalSection(&s_bufferHead[entryId].CriticalSection);
-    void *ret = slab_allocate_object(s_bufferHead[entryId].pSlab, 1 << BEST_FIT_BLOCKID(size), NULL, &code);
+    void *ret = slab_allocate_object(s_bufferHead[entryId].pSlab, 1 << BEST_FIT_BLOCKID(size), NULL,
+                                     &s_bufferHead[entryId].l1CacheFiller, &code);
     LeaveCriticalSection(&s_bufferHead[entryId].CriticalSection);
     return ret;
 }
@@ -207,7 +210,8 @@ void *kmem_cache_alloc(kmem_cache_t *cachep)
         return NULL;
 
     EnterCriticalSection(&cachep->CriticalSection);
-    void *ret = slab_allocate_object(cachep->pSlab, cachep->objectSize, cachep->constructor, &cachep->errorFlags);
+    void *ret = slab_allocate_object(cachep->pSlab, cachep->objectSize, cachep->constructor, &cachep->l1CacheFiller,
+                                     &cachep->errorFlags);
     LeaveCriticalSection(&cachep->CriticalSection);
     return ret;
 }
@@ -232,6 +236,7 @@ static void kmem_create_cache_init_state(kmem_cache_t *cache, const char *name, 
     cache->objectSize = size;
     cache->errorFlags = OK;
     strncpy(cache->name, name, NAME_MAX_LEN - 1);
+    cache->l1CacheFiller = 0;
     cache->pSlab[EMPTY] = NULL;
     cache->pSlab[HAS_SPACE] = NULL;
     cache->pSlab[FULL] = NULL;

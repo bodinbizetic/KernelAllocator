@@ -49,6 +49,7 @@ struct kmem_cache_struct
     function destructor;
     CRESULT errorFlags;
     char name[NAME_MAX_LEN];
+    size_t l1CacheFiller;
     kmem_slab_t *pSlab[NUM_TYPES];
 };
 
@@ -56,10 +57,11 @@ typedef struct kmem_buffer_struct
 {
     size_t size;
     CRITICAL_SECTION CriticalSection;
+    size_t l1CacheFiller;
     kmem_slab_t *pSlab[NUM_TYPES];
 } kmem_buffer_t;
 
-CRESULT get_slab(size_t objectSize, kmem_slab_t **result);
+CRESULT get_slab(size_t objectSize, size_t *l1CacheOffset, kmem_slab_t **result);
 CRESULT delete_slab(kmem_slab_t *slab);
 CRESULT slab_allocate(kmem_slab_t *slab, void **result);
 CRESULT slab_free(kmem_slab_t *slab, const void *ptr);

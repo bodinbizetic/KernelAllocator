@@ -10,7 +10,8 @@ extern kmem_buffer_t *s_bufferHead;
 SLAB_TEST_START(get_slab_pow_two)
 {
     kmem_slab_t *slab;
-    tst_OK(get_slab(objSize, &slab));
+    size_t l1Offset = 0;
+    tst_OK(get_slab(objSize, &l1Offset, &slab));
     BitMapEntry *bitmap = slab->pBitmap;
     int cnt = 0;
 
@@ -32,7 +33,8 @@ SLAB_TEST_END
 SLAB_TEST_START(full_alloc_slab)
 {
     kmem_slab_t *slab;
-    tst_OK(get_slab(objSize, &slab));
+    size_t l1Offset = 0;
+    tst_OK(get_slab(objSize, &l1Offset, &slab));
     tst_assert(slab);
     int i;
     void *last;
@@ -48,7 +50,8 @@ SLAB_TEST_END
 SLAB_TEST_START(alloc_dealloc)
 {
     kmem_slab_t *slab;
-    tst_OK(get_slab(objSize, &slab));
+    size_t l1Offset = 0;
+    tst_OK(get_slab(objSize, &l1Offset, &slab));
     const int numBlocks = slab->takenSlots;
     for (int i = 0; i < 1000; i++)
     {
@@ -63,7 +66,8 @@ SLAB_TEST_END
 SLAB_TEST_START(alloc_dealloc_mod)
 {
     kmem_slab_t *slab;
-    tst_OK(get_slab(objSize, &slab));
+    size_t l1Offset = 0;
+    tst_OK(get_slab(objSize, &l1Offset, &slab));
     const int numBlocks = NUMBER_OF_OBJECTS_IN_SLAB(slab);
     void *ptr[BLOCK_SIZE];
     for (int i = 0; i < numBlocks; i++)
@@ -96,7 +100,8 @@ SLAB_TEST_END
 SLAB_TEST_START(big_slab_alloc)
 {
     kmem_slab_t *slab;
-    tst_OK(get_slab(1 << 17, &slab));
+    size_t l1Offset = 0;
+    tst_OK(get_slab(1 << 17, &l1Offset, &slab));
     BitMapEntry *bitmap = slab->pBitmap;
     int cnt = 0;
 
@@ -183,6 +188,40 @@ SLAB_TEST_START(kmalloc_kfree)
 }
 SLAB_TEST_END
 
+SLAB_TEST_START(l1_cache)
+{
+    kmem_cache_t *cache = kmem_cache_create("L1_Cache_Test", Obj_Size, NULL, NULL);
+    const int ITER = 10;
+    const size_t notUsedMemory = (BLOCK_SIZE - sizeof(kmem_slab_t)) % Obj_Size;
+    size_t unused = 0;
+    const void **ptr = (void **)malloc(ITER * _numberOfObjectsInSlab * sizeof(void *));
+    for (int i = 0; i < 2; i++)
+    {
+        for (int j = 0; j < _numberOfObjectsInSlab; j++)
+        {
+            ptr[i * _numberOfObjectsInSlab + j] = kmem_cache_alloc(cache);
+        }
+        unused += CACHE_L1_LINE_SIZE;
+        if (unused > notUsedMemory)
+        {
+            unused = 0;
+        }
+        tst_assert(unused == cache->l1CacheFiller);
+    }
+
+    for (int i = 0; i < ITER; i++)
+    {
+        for (int j = 0; j < _numberOfObjectsInSlab; j++)
+        {
+            kmem_cache_free(cache, ptr[i * _numberOfObjectsInSlab + j]);
+        }
+    }
+    tst_assert(unused == cache->l1CacheFiller);
+
+    free(ptr);
+}
+SLAB_TEST_END
+
 TEST_SUITE_START(slab, 1024)
 {
     const size_t Obj_Size = 32;
@@ -195,5 +234,6 @@ TEST_SUITE_START(slab, 1024)
     SUITE_ADD_OBJSIZE(kmalloc_test_one, Obj_Size);
     SUITE_ADD_OBJSIZE(kmalloc_test_lvlup, Obj_Size);
     SUITE_ADD_OBJSIZE(kmalloc_kfree, Obj_Size);
+    SUITE_ADD_OBJSIZE(l1_cache, 300);
 }
 TEST_SUITE_END

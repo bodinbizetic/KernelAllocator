@@ -36,13 +36,15 @@ CRESULT get_slab_init_bitmap(kmem_slab_t *slab)
     return OK;
 }
 
-CRESULT get_slab(size_t objectSize, kmem_slab_t **result)
+CRESULT get_slab(size_t objectSize, size_t *l1CacheOffset, kmem_slab_t **result)
 {
-    if (objectSize == 0 || !result)
+    if (objectSize == 0 || !result || !l1CacheOffset)
     {
         *result = NULL;
         return PARAM_ERROR;
     }
+
+    ASSERT(*l1CacheOffset % CACHE_L1_LINE_SIZE == 0);
 
     size_t sizeOfSlab = BLOCK_SIZE;
     if (objectSize + sizeof(kmem_slab_t) > sizeOfSlab)
@@ -68,6 +70,25 @@ CRESULT get_slab(size_t objectSize, kmem_slab_t **result)
     (*result)->slabSize = sizeOfSlab;
     (*result)->pBitmap = NULL;
     (*result)->memStart = (void *)((size_t)(*result) + sizeof(kmem_slab_t));
+
+    const size_t NotUsedMemory = (sizeOfSlab - sizeof(kmem_slab_t)) % objectSize;
+
+    if (NotUsedMemory < *l1CacheOffset)
+        ASSERT(NotUsedMemory >= *l1CacheOffset);
+
+    (*result)->memStart = (void *)((size_t)(*result)->memStart + *l1CacheOffset);
+
+    if (NotUsedMemory >= *l1CacheOffset + CACHE_L1_LINE_SIZE)
+    {
+        *l1CacheOffset += CACHE_L1_LINE_SIZE;
+    }
+    else
+    {
+        *l1CacheOffset = 0;
+    }
+
+    if (NotUsedMemory < *l1CacheOffset)
+        ASSERT(NotUsedMemory >= *l1CacheOffset);
 
     get_slab_init_bitmap(*result);
 
