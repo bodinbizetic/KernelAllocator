@@ -71,10 +71,13 @@ CRESULT get_slab(size_t objectSize, size_t *l1CacheOffset, kmem_slab_t **result)
     (*result)->pBitmap = NULL;
     (*result)->memStart = (void *)((size_t)(*result) + sizeof(kmem_slab_t));
 
-    const size_t NotUsedMemory = (sizeOfSlab - sizeof(kmem_slab_t)) % objectSize;
+    kmem_slab_t* slab = *result;
 
-    if (NotUsedMemory < *l1CacheOffset)
-        ASSERT(NotUsedMemory >= *l1CacheOffset);
+    const size_t bitMapEntry = (slab->slabSize - sizeof(kmem_slab_t)) / (slab->objectSize * CHAR_BIT * sizeof(BitMapEntry)) + 1;
+
+    const size_t NotUsedMemory = (sizeOfSlab - sizeof(kmem_slab_t) - bitMapEntry) % objectSize;
+
+    ASSERT(NotUsedMemory >= *l1CacheOffset);
 
     (*result)->memStart = (void *)((size_t)(*result)->memStart + *l1CacheOffset);
 
@@ -87,12 +90,10 @@ CRESULT get_slab(size_t objectSize, size_t *l1CacheOffset, kmem_slab_t **result)
         *l1CacheOffset = 0;
     }
 
-    if (NotUsedMemory < *l1CacheOffset)
-        ASSERT(NotUsedMemory >= *l1CacheOffset);
+    ASSERT(NotUsedMemory >= *l1CacheOffset);
 
     get_slab_init_bitmap(*result);
-
-    const void *start = (*result)->memStart;
+    const void* start = (*result)->memStart;
     for (size_t i = (size_t)start; i + objectSize <= (size_t)*result + sizeOfSlab; i += objectSize)
     {
         setBitMap((*result), (i - (size_t)start) / (*result)->objectSize, 1);

@@ -11,6 +11,7 @@ kmem_buffer_t *s_bufferHead;
 
 static void kmem_create_cache_init_state(kmem_cache_t *cache, const char *name, size_t size, void (*ctor)(void *),
                                          void (*dtor)(void *));
+static int slab_deallocate_list(kmem_slab_t** head);
 
 static void kmem_buffer_init()
 {
@@ -38,7 +39,7 @@ static void kmem_cache_init()
         return;
 
     s_cacheHead = (kmem_cache_t *)(s_bufferHead + BUFFER_ENTRY_NUM);
-    kmem_create_cache_init_state(s_cacheHead, "\0", sizeof(kmem_cache_t), NULL, NULL);
+    kmem_create_cache_init_state(s_cacheHead, "CacheHead\0", sizeof(kmem_cache_t), NULL, NULL);
 }
 
 void kmem_init(void *space, int block_num)
@@ -74,8 +75,6 @@ static void *slab_allocate_has_space(kmem_slab_t *pSlab[], CRESULT *retCode)
     if (code != OK)
     {
         *retCode |= code;
-        LOG("[ERROR] %d %d", code, sizeof(kmem_slab_t));
-        PRINT();
         ASSERT(0 && "allocate failed");
         return NULL;
     }
@@ -198,6 +197,7 @@ void kfree(const void *objp)
     {
         EnterCriticalSection(&s_bufferHead[i].CriticalSection);
         CRESULT code = slab_kfree_object(s_bufferHead[i].pSlab, objp, NULL);
+        int ret = slab_deallocate_list(&s_bufferHead[i].pSlab[EMPTY]); // kmem_shrink
         LeaveCriticalSection(&s_bufferHead[i].CriticalSection);
         if (code == OK)
             return;
@@ -306,6 +306,7 @@ void kmem_cache_destroy(kmem_cache_t *cachep)
 
     EnterCriticalSection(&s_cacheHead->CriticalSection);
     kmem_cache_free(s_cacheHead, cachep);
+    kmem_cache_shrink(s_cacheHead);
     LeaveCriticalSection(&s_cacheHead->CriticalSection);
 }
 
@@ -344,11 +345,6 @@ void kmem_cache_info(kmem_cache_t *cachep)
             }
         }
     LeaveCriticalSection(&cachep->CriticalSection);
-    printf("Cache info\n");
-    printf("Name: %s\n", cachep->name);
-    printf("Object size: %llu\n", (unsigned long long)cachep->objectSize);
-    printf("Num blocks: %d\n", number_blocks);
-    printf("Number slabs: %d\n", number_slabs);
-    printf("Number objects: %d\n", maxObjects - number_objects_free);
-    printf("Percentage: %f\n", ((double)maxObjects - number_objects_free) / maxObjects);
+    printf_s("Cache info\nName: %s\nObject size: %llu\nNum blocks: %d\nNumber slabs: %d\nNumber objects: %d\nPercentage: %f\n",
+        cachep->name, (unsigned long long)cachep->objectSize, number_blocks, number_slabs, maxObjects - number_objects_free, ((double)maxObjects - number_objects_free) / maxObjects);
 }

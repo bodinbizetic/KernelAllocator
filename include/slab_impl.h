@@ -27,6 +27,7 @@ typedef struct kmem_slab_struct
     size_t takenSlots;
     BitMapEntry *pBitmap;
     int numBitMapEntry;
+    size_t cacheMoved;
     void *memStart;
 } kmem_slab_t;
 
