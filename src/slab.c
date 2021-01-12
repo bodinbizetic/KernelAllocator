@@ -144,6 +144,8 @@ void *kmalloc(size_t size)
     if (!s_bufferHead)
         return NULL;
     const int entryId = BEST_FIT_BLOCKID(size) - 5;
+    if (entryId < BUFFER_SIZE_MIN - 5 || entryId > BUFFER_SIZE_MAX - 5)
+        return NULL;
     CRESULT code = OK;
     EnterCriticalSection(&s_bufferHead[entryId].CriticalSection);
     void *ret = slab_allocate_object(s_bufferHead[entryId].pSlab, 1 << BEST_FIT_BLOCKID(size), NULL,
